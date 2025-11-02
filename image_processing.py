@@ -130,7 +130,7 @@ def main():
 
     # Set base paths
     BASE_PATH = Path(__file__).parent
-    VIDEO_PATH = BASE_PATH / "test_data" / "test_video.mov"
+    VIDEO_PATH = BASE_PATH / "test_data" / "test_video_2.mov"
     OUTPUT_DATA_PATH = BASE_PATH / "output" / "edge_data"
     OUTPUT_IMG_PATH = BASE_PATH / "output" / "edge_plots"
     OUTPUT_BINARY_PATH = BASE_PATH / "output" / "binary_edges"
@@ -142,10 +142,10 @@ def main():
 
     # Image crop parameters
     crop_params = {
-        'initial_x_crop': 625,      # Left edge
-        'initial_y_crop': 250,      # Top edge
-        'x_max': 800,               # Width of crop
-        'y_max': 750                # Height of crop
+        'initial_x_crop': 445,      # Left edge
+        'initial_y_crop': 88,      # Top edge
+        'x_max': 1160,               # Width of crop
+        'y_max': 932                # Height of crop
     }
 
     # Edge detection parameters
@@ -182,7 +182,7 @@ def main():
     num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
     # Set frame range to process
-    starting_frame = 210
+    starting_frame = 5
     ending_frame = 545
     frame_range = ending_frame - starting_frame
 
