@@ -8,8 +8,9 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import skimage as ski
-from pathlib import Path
 import os
+
+from config import ProcessingConfig, PathConfig, PlotConfig
 
 def bwareaopen(binary_image, min_size):
     """
@@ -62,10 +63,14 @@ def crop_image(frame, crop_params):
 
     return imgcrop
 
-def process_frame_edge(frame, crop_params, filter_size=3, canny_low=25,
-                       canny_high=51, min_object_size=100, adaptive_threshold=True):
+def process_frame_edge(frame, crop_params,
+                       filter_size=ProcessingConfig.DEFAULT_FILTER_SIZE,
+                       canny_low=ProcessingConfig.DEFAULT_CANNY_LOW,
+                       canny_high=ProcessingConfig.DEFAULT_CANNY_HIGH,
+                       min_object_size=ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE,
+                       adaptive_threshold=True):
     """
-    Performs edge dete tion for a single frame
+    Performs edge detection for a single frame
 
     :param frame: Input frame (ndarray)
     :param crop_params: Dictionary with crop parameters
@@ -73,7 +78,7 @@ def process_frame_edge(frame, crop_params, filter_size=3, canny_low=25,
     :param canny_low: Lower canny threshold (0-255)
     :param canny_high: Upper canny threshold (0-255)
     :param min_object_size: Minimum size of objects to keep (pixels)
-    :param adaptive_threshold:
+    :param adaptive_threshold: Whether to use adaptive thresholding
 
     :return: Dictionary containing:
              cropped image, filtered image, binary edge image, edge coordinates, and number of edge points
@@ -113,15 +118,18 @@ def plot_edge_points(cropped_image, edge_points):
     :return: matplotlib figure
     """
 
-    fig, ax = plt.subplots(figsize=(10,8))
-    ax.imshow(cropped_image, cmap='gray')
+    fig, ax = plt.subplots(figsize=(PlotConfig.FIGURE_WIDTH, PlotConfig.FIGURE_HEIGHT))
+    ax.imshow(cropped_image, cmap=PlotConfig.COLORMAP)
 
-    if len(edge_points)>0:
-        ax.plot(edge_points[:, 0], edge_points[:,1],
-                color='blue', marker='.', linestyle='none',
-                markersize=2, alpha=0.6)
+    if len(edge_points) > 0:
+        ax.plot(edge_points[:, 0], edge_points[:, 1],
+                color=PlotConfig.EDGE_POINT_COLOR,
+                marker=PlotConfig.EDGE_POINT_MARKER,
+                linestyle='none',
+                markersize=PlotConfig.EDGE_POINT_SIZE,
+                alpha=PlotConfig.EDGE_POINT_ALPHA)
 
-    ax.set_title(f"Edge Detection")
+    ax.set_title(PlotConfig.PLOT_TITLE)
     ax.axis('off')
 
     return fig
@@ -129,40 +137,32 @@ def plot_edge_points(cropped_image, edge_points):
 def main():
 
     # Set base paths
-    BASE_PATH = Path(__file__).parent
-    VIDEO_PATH = BASE_PATH / "test_data" / "test_video_2.mov"
-    OUTPUT_DATA_PATH = BASE_PATH / "output" / "edge_data"
-    OUTPUT_IMG_PATH = BASE_PATH / "output" / "edge_plots"
-    OUTPUT_BINARY_PATH = BASE_PATH / "output" / "binary_edges"
+    VIDEO_PATH = PathConfig.DEFAULT_VIDEO_FILE
+    OUTPUT_DATA_PATH = PathConfig.OUTPUT_EDGE_DATA
+    OUTPUT_IMG_PATH = PathConfig.OUTPUT_EDGE_PLOTS
+    OUTPUT_BINARY_PATH = PathConfig.OUTPUT_BINARY_EDGES
 
     # Create output directories if they don't exist
-    OUTPUT_DATA_PATH.mkdir(parents=True, exist_ok=True)
-    OUTPUT_IMG_PATH.mkdir(parents=True, exist_ok=True)
-    OUTPUT_BINARY_PATH.mkdir(parents=True, exist_ok=True)
+    PathConfig.create_output_directories()
 
     # Image crop parameters
-    crop_params = {
-        'initial_x_crop': 445,      # Left edge
-        'initial_y_crop': 88,      # Top edge
-        'x_max': 1160,               # Width of crop
-        'y_max': 932                # Height of crop
-    }
+    crop_params = ProcessingConfig.DEFAULT_CROP
 
     # Edge detection parameters
     canny_params = {
-        'filter_size': 3,           # Median filter kernel (odd)
-        'canny_low': 25,            # Lower canny threshold (0-255)
-        'canny_high': 51,           # Upper canny threshold (0-255)
-        'min_object_size': 100,     # Minimum object size (pixels)
+        'filter_size': ProcessingConfig.DEFAULT_FILTER_SIZE,
+        'canny_low': ProcessingConfig.DEFAULT_CANNY_LOW,
+        'canny_high': ProcessingConfig.DEFAULT_CANNY_HIGH,
+        'min_object_size': ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE,
         'adaptive_threshold': True
     }
 
     # Calibration frame parameters
     calibration_params = {
-        'filter_size': 15,          # Median filter kernel (odd)
-        'canny_low': 25,            # Lower canny threshold (0-255)
-        'canny_high': 51,           # Upper canny threshold (0-255)
-        'min_object_size': 100,     # Minimum object size (pixels)
+        'filter_size': ProcessingConfig.CALIBRATION_FILTER_SIZE,
+        'canny_low': ProcessingConfig.CALIBRATION_CANNY_LOW,
+        'canny_high': ProcessingConfig.CALIBRATION_CANNY_HIGH,
+        'min_object_size': ProcessingConfig.CALIBRATION_MIN_OBJECT_SIZE,
         'adaptive_threshold': False
     }
 
@@ -182,13 +182,13 @@ def main():
     num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
     # Set frame range to process
-    starting_frame = 5
-    ending_frame = 545
+    starting_frame = ProcessingConfig.DEFAULT_STARTING_FRAME
+    ending_frame = ProcessingConfig.DEFAULT_ENDING_FRAME
     frame_range = ending_frame - starting_frame
 
     # Calibration frame
     # Read calibration frame
-    calib_frame_num = starting_frame + 1
+    calib_frame_num = starting_frame + ProcessingConfig.CALIBRATION_FRAME_OFFSET
     video.set(cv2.CAP_PROP_POS_FRAMES, calib_frame_num)
     ret, frame = video.read()
 
@@ -207,7 +207,7 @@ def main():
 
     # Plot calibration frame
     fig = plot_edge_points(calibration_results['cropped_image'], calibration_results['edge_points'])
-    fig.savefig(OUTPUT_IMG_PATH / f"calibration_frame_{calib_frame_num}.png", dpi=300)
+    fig.savefig(OUTPUT_IMG_PATH / f"calibration_frame_{calib_frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
     plt.close(fig)
 
     # Process all the frames
@@ -217,7 +217,7 @@ def main():
     skipped_count = 0
 
     # Discard bad frames in the beginning
-    for i in range(5, frame_range):
+    for i in range(ProcessingConfig.DEFAULT_STARTING_FRAME, frame_range):
         frame_num = starting_frame + i
 
         if frame_num >= num_frames:
@@ -236,7 +236,7 @@ def main():
         results = process_frame_edge(frame, crop_params, **canny_params)
 
         # Check edge point count
-        if results['num_edge_points'] < 5:
+        if results['num_edge_points'] < ProcessingConfig.MIN_EDGE_POINTS:
             print(f"Insufficient edge points detected for frame {frame_num}. Skipping.")
             skipped_count += 1
             continue
@@ -249,7 +249,7 @@ def main():
 
         # Plot frame
         fig = plot_edge_points(results['cropped_image'], results['edge_points'])
-        fig.savefig(OUTPUT_IMG_PATH / f"frame_{frame_num}.png", dpi=300)
+        fig.savefig(OUTPUT_IMG_PATH / f"frame_{frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
         plt.close(fig)
 
         # Save binary edge image
@@ -263,7 +263,7 @@ def main():
 
         processed_count += 1
 
-        if processed_count % 50 == 0:
+        if processed_count % ProcessingConfig.PROGRESS_REPORT_INTERVAL == 0:
             print(f"Processed {processed_count} frames...")
 
     video.release()
