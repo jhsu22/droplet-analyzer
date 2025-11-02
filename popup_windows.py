@@ -16,16 +16,8 @@ def enumerate_cameras(max_tested=10):
     :param max_tested: Maximum number of camera indices to test
     :return: List of available camera indices
     """
+    # TODO: Implement camera enumeration
     available = []
-    for i in range(max_tested):
-        # Use CAP_DSHOW backend for Windows compatibility
-        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW) if cv2.CAP_DSHOW else cv2.VideoCapture(i)
-        if cap.isOpened():
-            # Try to read a frame to verify it actually works
-            ret, _ = cap.read()
-            if ret:
-                available.append(i)
-            cap.release()
     return available
 
 
@@ -106,7 +98,7 @@ class VideoPopup(BasePopup):
         self.content_frame.grid_columnconfigure(1, weight=1)
         self.content_frame.grid_rowconfigure(4, weight=1)
 
-        # Live vs loaded video switch (always visible at row 0)
+        # Live vs loaded video switch (always visible at top row)
         self.live_switch = ctk.CTkSwitch(
             self.content_frame,
             text="Live Video Feed",
@@ -358,107 +350,30 @@ class VideoPopup(BasePopup):
             self.file_path_entry.insert(0, filename)
             self.load_button.configure(state="normal")
 
-            # Update info display (placeholder)
+            # Update info display
             self.file_info_text.configure(state="normal")
             self.file_info_text.delete("0.0", "end")
             self.file_info_text.insert("0.0", f"File: {filename}\n\n")
-            self.file_info_text.insert("end", "Video information will be displayed here after loading.")
+            self.file_info_text.insert("end", "TODO: Display video information")
             self.file_info_text.configure(state="disabled")
 
     def test_camera(self):
         """Test the selected camera and display information"""
-        if not self.available_cameras:
-            self.test_status_label.configure(text="No cameras available", text_color=UIConfig.COLOR_STATUS_DISCONNECTED)
-            return
-
-        # Get selected camera index
-        camera_selection = self.camera_combo.get()
-        camera_index = int(camera_selection.split()[-1])
-
-        self.test_status_label.configure(text="Testing...", text_color=UIConfig.COLOR_TEXT_PRIMARY)
-        self.update()
-
-        try:
-            # Open camera
-            cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW) if cv2.CAP_DSHOW else cv2.VideoCapture(camera_index)
-
-            if not cap.isOpened():
-                self.test_status_label.configure(text="Failed to open", text_color=UIConfig.COLOR_STATUS_DISCONNECTED)
-                self.live_info_text.configure(state="normal")
-                self.live_info_text.delete("0.0", "end")
-                self.live_info_text.insert("0.0", f"Error: Could not open Camera {camera_index}")
-                self.live_info_text.configure(state="disabled")
-                return
-
-            # Apply resolution settings if not Auto
-            resolution = self.resolution_combo.get()
-            if resolution != "Auto (Default)":
-                width, height = map(int, resolution.split()[0].split('x'))
-                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-
-            # Apply FPS settings if not Auto
-            fps_setting = self.fps_combo.get()
-            if fps_setting != "Auto (Default)":
-                fps_value = int(fps_setting.split()[0])
-                cap.set(cv2.CAP_PROP_FPS, fps_value)
-
-            # Read a test frame
-            ret, frame = cap.read()
-
-            if ret:
-                # Get actual camera properties
-                actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                actual_fps = cap.get(cv2.CAP_PROP_FPS)
-
-                self.test_status_label.configure(text="✓ Success", text_color=UIConfig.COLOR_STATUS_CONNECTED)
-
-                # Display camera info
-                self.live_info_text.configure(state="normal")
-                self.live_info_text.delete("0.0", "end")
-                self.live_info_text.insert("0.0", f"Camera {camera_index} Test Results:\n\n")
-                self.live_info_text.insert("end", f"Resolution: {actual_width}x{actual_height}\n")
-                self.live_info_text.insert("end", f"FPS: {actual_fps:.2f}\n")
-                self.live_info_text.insert("end", f"Frame shape: {frame.shape}\n")
-                self.live_info_text.insert("end", f"\nCamera is ready to use!")
-                self.live_info_text.configure(state="disabled")
-
-                self.selected_camera_index = camera_index
-            else:
-                self.test_status_label.configure(text="No frame", text_color=UIConfig.COLOR_STATUS_DISCONNECTED)
-                self.live_info_text.configure(state="normal")
-                self.live_info_text.delete("0.0", "end")
-                self.live_info_text.insert("0.0", f"Error: Camera {camera_index} opened but could not read frame")
-                self.live_info_text.configure(state="disabled")
-
-            cap.release()
-
-        except Exception as e:
-            self.test_status_label.configure(text="Error", text_color=UIConfig.COLOR_STATUS_DISCONNECTED)
-            self.live_info_text.configure(state="normal")
-            self.live_info_text.delete("0.0", "end")
-            self.live_info_text.insert("0.0", f"Error testing camera:\n{str(e)}")
-            self.live_info_text.configure(state="disabled")
+        # TODO: Implement camera testing logic
+        pass
 
     def load_video(self):
-        """Load the selected video file (to be implemented)"""
+        """Load the selected video file"""
+        # TODO: Implement video loading logic
         print(f"Loading video: {self.selected_video_path}")
-        # TODO: Integrate with video processing logic
         self.destroy()
 
     def start_live_feed(self):
-        """Start live camera feed (to be implemented)"""
-        if not self.selected_camera_index and self.available_cameras:
-            # Use first available camera if not tested
-            camera_selection = self.camera_combo.get()
-            self.selected_camera_index = int(camera_selection.split()[-1])
-
-        print(f"Starting live feed from camera {self.selected_camera_index}")
+        """Start live camera feed"""
+        # TODO: Implement live feed logic
+        print(f"Starting live feed")
         print(f"Resolution: {self.resolution_combo.get()}")
         print(f"FPS: {self.fps_combo.get()}")
-        # TODO: Integrate with video processing logic
         self.destroy()
 
 

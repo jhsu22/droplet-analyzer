@@ -11,6 +11,7 @@ import skimage as ski
 import os
 
 from config import ProcessingConfig, PathConfig, PlotConfig
+from popup_windows import VideoPopup
 
 def bwareaopen(binary_image, min_size):
     """

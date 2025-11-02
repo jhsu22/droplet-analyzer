@@ -20,7 +20,7 @@ class UIConfig:
     FONT_SIZE_NORMAL = 14
     FONT_SIZE_TITLE = 14
 
-    # Colors (Catppuccin Mocha theme)
+    # Colors
     COLOR_BG_PRIMARY = '#1e1e2e'
     COLOR_BG_SECONDARY = '#181825'
     COLOR_BORDER = '#45475a'
@@ -51,9 +51,9 @@ class UIConfig:
     PANEL_TITLE_OUTPUT = "OUTPUT"
 
     # Grid weights (for layout proportions)
-    GRID_WEIGHT_IMAGE = 7
-    GRID_WEIGHT_PARAMETERS = 8
-    GRID_WEIGHT_SERIAL = 7
+    GRID_WEIGHT_IMAGE = 8
+    GRID_WEIGHT_PARAMETERS = 7
+    GRID_WEIGHT_SERIAL = 6
 
 
 class ProcessingConfig:

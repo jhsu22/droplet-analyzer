@@ -89,4 +89,5 @@ def main():
 
 
 if __name__ == "__main__":
+    ctk.set_appearance_mode("Dark")
     main()
