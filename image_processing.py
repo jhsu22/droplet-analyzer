@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import skimage as ski
 import os
 
-from config import ProcessingConfig, PathConfig, PlotConfig
+from config import ProcessingConfig, PathConfig, PlotConfig, processing_config
 from popup_windows import VideoPopup
 
 def bwareaopen(binary_image, min_size):
@@ -65,11 +65,14 @@ def crop_image(frame, crop_params):
     return imgcrop
 
 def process_frame_edge(frame, crop_params,
-                       filter_size=ProcessingConfig.DEFAULT_FILTER_SIZE,
-                       canny_low=ProcessingConfig.DEFAULT_CANNY_LOW,
-                       canny_high=ProcessingConfig.DEFAULT_CANNY_HIGH,
-                       min_object_size=ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE,
-                       adaptive_threshold=True):
+                       filter_size=processing_config.filter_size,
+                       canny_low=processing_config.canny_low,
+                       canny_high=processing_config.canny_high,
+                       min_object_size=processing_config.min_object_size,
+                       min_size_mult=processing_config.min_size_mult,
+                       sigma=processing_config.sigma,
+                       adaptive_threshold=True,
+                       calibration_radius=None):
     """
     Performs edge detection for a single frame
 
@@ -90,13 +93,25 @@ def process_frame_edge(frame, crop_params,
     # Apply a median filter to the image to smooth noise
     im_med = cv2.medianBlur(imgcrop, filter_size)
 
+    # Apply a gaussian blur to smooth edges
+    im_gaussian = cv2.GaussianBlur(im_med, (5, 5), sigma)
+
     # Find edges using canny
-    edges = cv2.Canny(im_med, canny_low, canny_high, apertureSize=3)
+    edges = cv2.Canny(im_gaussian, canny_low, canny_high, apertureSize=3)
 
-    # Clean noise using bweareaopen (scikit-image morphology)
-    clean_edges = bwareaopen(edges, min_object_size)
+    # First pass of cleaning noise using bweareaopen
+    clean_pass1 = bwareaopen(edges, min_object_size)
 
-    # Extract edge point coordinates
+    # Extract edge point coordinates from first pass
+    pass1_points = extract_edge_points(clean_pass1)
+
+    # Dynamically calculated min object size for pass 2
+    min_size_adapted = np.floor(len(pass1_points) * min_size_mult)
+
+    # Second pass of cleaning noise using bweareaopen
+    clean_edges = bwareaopen(clean_pass1, min_size_adapted)
+
+    # Extract edge point coordinates from second
     edge_points = extract_edge_points(clean_edges)
 
     results = {
@@ -197,7 +212,23 @@ def main():
         print("Error reading calibration frame.")
 
     # Process calibration frame
-    calibration_results = process_frame_edge(frame, crop_params, **calibration_params)
+    calibration_results = process_frame_edge(frame, crop_params, sigma=5, **calibration_params)
+
+    # Calculate centroid and average radius from edge points
+    calibration_edge_points = calibration_results['edge_points']
+    if len(calibration_edge_points) > 0:
+        calibration_center_x = np.mean(calibration_edge_points[:, 0])
+        calibration_center_y = np.mean(calibration_edge_points[:, 1])
+        distances_from_center = np.sqrt((calibration_edge_points[:, 0] - calibration_center_x)**2,
+                                        (calibration_edge_points[:, 1] - calibration_center_y)**2)
+        calibration_radius = np.mean(distances_from_center)
+        print(f"  Calibration frame average radius: {calibration_radius:.2f} pixels")
+    else:
+        calibration_center_x = 0
+        calibration_center_y = 0
+        calibration_radius = 0
+        print(f"  No edge points detected in calibration frame. Average radius set to 0.")
+
 
     print(f"  Frame {calib_frame_num}: {calibration_results['num_edge_points']} edge points detected")
 
@@ -234,7 +265,7 @@ def main():
             continue
 
         # Process frame
-        results = process_frame_edge(frame, crop_params, **canny_params)
+        results = process_frame_edge(frame, crop_params, **canny_params, calibration_radius=calibration_radius)
 
         # Check edge point count
         if results['num_edge_points'] < ProcessingConfig.MIN_EDGE_POINTS:

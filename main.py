@@ -3,6 +3,7 @@ Pendant Droplet Analyzer - Main Application
 """
 
 import sys
+import os
 import customtkinter as ctk
 
 if sys.platform != "darwin":
@@ -10,6 +11,9 @@ if sys.platform != "darwin":
 
 from ui_builder import UIFrame
 from config import UIConfig, PathConfig
+
+import cv2
+from PIL import Image
 
 
 def resource_path(relative_path):

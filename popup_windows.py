@@ -88,7 +88,7 @@ class VideoPopup(BasePopup):
             parent,
             "VIDEO",
             PopupConfig.VIDEO_POPUP_WIDTH,
-            PopupConfig.VIDEO_POPUP_HEIGHT
+            PopupConfig.VIDEO_POPUP_HEIGHT,
         )
 
         self.selected_video_path = None

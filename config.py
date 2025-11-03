@@ -72,7 +72,8 @@ class ProcessingConfig:
     DEFAULT_CANNY_LOW = 25
     DEFAULT_CANNY_HIGH = 51
     DEFAULT_MIN_OBJECT_SIZE = 100
-    DEFAULT_SIGMA = 3.0
+    DEFAULT_MIN_SIZE_MULT = 0.33
+    DEFAULT_SIGMA = 2.5
 
     # Calibration frame parameters
     CALIBRATION_FILTER_SIZE = 15
@@ -92,6 +93,24 @@ class ProcessingConfig:
     PROGRESS_REPORT_INTERVAL = 50  # Report every N frames
 
 
+class CurrentProcessingConfig:
+    """Holds the current, live values for image processing parameters."""
+    def __init__(self):
+        self.x_start = ProcessingConfig.DEFAULT_CROP['initial_x_crop']
+        self.y_start = ProcessingConfig.DEFAULT_CROP['initial_y_crop']
+        self.x_end = ProcessingConfig.DEFAULT_CROP['x_max']
+        self.y_end = ProcessingConfig.DEFAULT_CROP['y_max']
+        self.filter_size = ProcessingConfig.DEFAULT_FILTER_SIZE
+        self.canny_low = ProcessingConfig.DEFAULT_CANNY_LOW
+        self.canny_high = ProcessingConfig.DEFAULT_CANNY_HIGH
+        self.min_object_size = ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE
+        self.min_size_mult = ProcessingConfig.DEFAULT_MIN_SIZE_MULT
+        self.sigma = ProcessingConfig.DEFAULT_SIGMA
+
+# Create a single, importable instance of the live config
+processing_config = CurrentProcessingConfig()
+
+
 class SliderConfig:
     """Configuration for UI parameter sliders"""
 
@@ -107,22 +126,27 @@ class SliderConfig:
     # Filter size range
     FILTER_MIN = 1
     FILTER_MAX = 25
-    FILTER_STEPS = 12
+    FILTER_STEPS = 24
 
     # Canny threshold ranges
     CANNY_MIN = 0
     CANNY_MAX = 255
     CANNY_STEPS = 255
 
-    # Min object size range
+    # 1st pass min object size range
     MIN_OBJ_MIN = 0
     MIN_OBJ_MAX = 500
     MIN_OBJ_STEPS = 500
 
+    # 2nd pass min object size mult range
+    MIN_MULT_MIN = 0
+    MIN_MULT_MAX = 1
+    MIN_MULT_STEPS = 100
+
     # Sigma range
     SIGMA_MIN = 1.0
-    SIGMA_MAX = 4.0
-    SIGMA_STEPS = 100
+    SIGMA_MAX = 5.0
+    SIGMA_STEPS = 400
 
     # Slider label width
     VALUE_LABEL_WIDTH = 50
@@ -362,6 +386,12 @@ def get_slider_params():
             'to': SliderConfig.MIN_OBJ_MAX,
             'number_of_steps': SliderConfig.MIN_OBJ_STEPS,
             'default': ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE
+        },
+        'min_size_mult': {
+            'from_': SliderConfig.MIN_MULT_MIN,
+            'to': SliderConfig.MIN_MULT_MAX,
+            'number_of_steps': SliderConfig.MIN_MULT_STEPS,
+            'default': ProcessingConfig.DEFAULT_MIN_SIZE_MULT
         },
         'sigma': {
             'from_': SliderConfig.SIGMA_MIN,
