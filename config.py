@@ -201,7 +201,7 @@ class PathConfig:
     OUTPUT_BINARY_EDGES = OUTPUT_PATH / "binary_edges"
 
     # Default video file
-    DEFAULT_VIDEO_FILE = TEST_DATA_PATH / "test_video_2.mov"
+    DEFAULT_VIDEO_FILE = TEST_DATA_PATH / "test_video.mov"
 
     @classmethod
     def create_output_directories(cls):
@@ -248,6 +248,9 @@ class PopupConfig:
 
     HELP_POPUP_WIDTH = 650
     HELP_POPUP_HEIGHT = 550
+
+    CROP_POPUP_WIDTH = 800
+    CROP_POPUP_HEIGHT = 600
 
     # Export formats
     EXPORT_FORMATS = ["CSV", "Excel (XLSX)", "JSON", "NumPy (NPZ)"]

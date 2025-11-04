@@ -364,8 +364,9 @@ class VideoPopup(BasePopup):
 
     def load_video(self):
         """Load the selected video file"""
-        # TODO: Implement video loading logic
         print(f"Loading video: {self.selected_video_path}")
+        if self.selected_video_path:
+            self.parent.load_video(self.selected_video_path)
         self.destroy()
 
     def start_live_feed(self):
@@ -692,3 +693,18 @@ class HelpPopup(BasePopup):
             font=self.parent.custom_font,
             command=self.destroy
         ).pack(side="right", pady=(UIConfig.PADDING_MEDIUM, 0))
+
+class CropPopup(BasePopup):
+    """Popup for cropping documentation"""
+    def __init__(self, parent):
+        super().__init__(
+            parent,
+            "CROP",
+            PopupConfig.CROP_POPUP_WIDTH,
+            PopupConfig.CROP_POPUP_HEIGHT
+        )
+
+        display_width = PopupConfig.CROP_POPUP_WIDTH - 50
+        display_height = PopupConfig.CROP_POPUP_HEIGHT - 50
+
+        image.thumbnail((display_width, display_height), ctk.Image.Resampling.LANCZOS)

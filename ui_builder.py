@@ -5,7 +5,7 @@ Contains all UI building logic and widgets
 
 import customtkinter as ctk
 from config import UIConfig, SliderConfig, SerialConfig, get_slider_params, processing_config
-from popup_windows import VideoPopup, ViewDataPopup, ExportPopup, SettingsPopup, HelpPopup
+from popup_windows import VideoPopup, ViewDataPopup, ExportPopup, SettingsPopup, HelpPopup, CropPopup
 
 
 class UIFrame(ctk.CTkFrame):
@@ -127,24 +127,41 @@ class UIFrame(ctk.CTkFrame):
         )
         self.help_button.pack(side="left", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_MEDIUM)
 
-        # Start/Stop button next to settings
-        def start_stop_text(startstop):
-            if startstop.current_state == "off":
-                startstop.configure(text="Start Analysis")
-                startstop.current_state = "on"
-            else:
-                startstop.configure(text="Stop Analysis")
-                startstop.current_state = "off"
-
-        start_stop_button = ctk.CTkButton(
+        # Start/Stop button
+        self.start_analysis_button = ctk.CTkButton(
             button_frame,
             text="Start Analysis",
             font=self.master.custom_font_bold,
-            height=UIConfig.START_BUTTON_HEIGHT
+            width=UIConfig.BUTTON_WIDTH,
+            height=UIConfig.START_BUTTON_HEIGHT,
+            command=self.master.start_analysis,
+            state="disabled"
         )
-        start_stop_button.current_state = "on"
-        start_stop_button.configure(command=lambda: start_stop_text(start_stop_button))
-        start_stop_button.pack(side="right", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+        self.start_analysis_button.current_state = "on"
+        self.start_analysis_button.pack(side="right", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        # Calibrate button
+        self.calibrate_button = ctk.CTkButton(
+            button_frame,
+            text="Calibrate",
+            font=self.master.custom_font_bold,
+            height=UIConfig.START_BUTTON_HEIGHT,
+            width=UIConfig.BUTTON_WIDTH,
+            command=self.master.start_calibration,
+            state="disabled"
+        )
+        self.calibrate_button.pack(side="right", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        # Video crop button
+        self.crop_button = ctk.CTkButton(
+            button_frame,
+            text="Crop",
+            font=self.master.custom_font_bold,
+            width=UIConfig.BUTTON_WIDTH,
+            height=UIConfig.START_BUTTON_HEIGHT,
+            command=self.open_crop_popup
+        )
+        self.crop_button.pack(side="right", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
 
         # === CONTENT AREA ===
         content_frame = ctk.CTkFrame(
@@ -194,6 +211,33 @@ class UIFrame(ctk.CTkFrame):
             text_color=UIConfig.COLOR_TEXT_PRIMARY,
         )
         self.image_label.place(relx=0.5, rely=0.5, anchor="center")
+
+        video_control_frame = ctk.CTkFrame(
+            image_container,
+            fg_color="transparent",
+        )
+        video_control_frame.pack(fill="x", pady=(UIConfig.PADDING_SMALL, 0))
+
+        video_control_frame.grid_columnconfigure(0, weight=1) # Slider column
+        video_control_frame.grid_columnconfigure(1, weight=0) # Label column
+
+        self.video_slider = ctk.CTkSlider(
+            video_control_frame,
+            from_=0,
+            to=1,                                   # Placeholder
+            number_of_steps=1,                      # Placeholder
+            command=self.master.seek_video_frame,
+            state="disabled"
+        )
+        self.video_slider.grid(row=0, column=0, sticky="ew", padx=(UIConfig.PADDING_SMALL, UIConfig.PADDING_SMALL), pady=UIConfig.PADDING_SMALL)
+
+        self.frame_number_label = ctk.CTkLabel(
+            video_control_frame,
+            text="Frame 0/0",                           # Placeholder
+            text_color=UIConfig.COLOR_TEXT_PRIMARY,
+            font=self.master.custom_font
+        )
+        self.frame_number_label.grid(row=0, column=1, sticky="e", padx=(0, UIConfig.PADDING_SMALL))
 
         # Parameters panel with container
         parameters_container = ctk.CTkFrame(top_row, fg_color="transparent")
@@ -515,3 +559,7 @@ class UIFrame(ctk.CTkFrame):
     def open_help_popup(self):
         """Open Help popup window"""
         HelpPopup(self.master)
+
+    def open_crop_popup(self):
+        """Open crop popup window"""
+        CropPopup(self.master)

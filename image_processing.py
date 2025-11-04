@@ -150,6 +150,57 @@ def plot_edge_points(cropped_image, edge_points):
 
     return fig
 
+def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_PATH):
+
+    # Calibration frame parameters
+    calibration_params = {
+        'filter_size': ProcessingConfig.CALIBRATION_FILTER_SIZE,
+        'canny_low': ProcessingConfig.CALIBRATION_CANNY_LOW,
+        'canny_high': ProcessingConfig.CALIBRATION_CANNY_HIGH,
+        'min_object_size': ProcessingConfig.CALIBRATION_MIN_OBJECT_SIZE,
+        'adaptive_threshold': False
+    }
+
+    # Read calibration frame
+    calib_frame_num = starting_frame + ProcessingConfig.CALIBRATION_FRAME_OFFSET
+    video.set(cv2.CAP_PROP_POS_FRAMES, calib_frame_num)
+    ret, frame = video.read()
+
+    if not ret:
+        print("Error reading calibration frame.")
+
+    # Process calibration frame
+    calibration_results = process_frame_edge(frame, crop_params, sigma=5, **calibration_params)
+
+    # Calculate centroid and average radius from edge points
+    calibration_edge_points = calibration_results['edge_points']
+    if len(calibration_edge_points) > 0:
+        calibration_center_x = np.mean(calibration_edge_points[:, 0])
+        calibration_center_y = np.mean(calibration_edge_points[:, 1])
+        distances_from_center = np.sqrt((calibration_edge_points[:, 0] - calibration_center_x) ** 2,
+                                        (calibration_edge_points[:, 1] - calibration_center_y) ** 2)
+        calibration_radius = np.mean(distances_from_center)
+        print(f"  Calibration frame average radius: {calibration_radius:.2f} pixels")
+    else:
+        calibration_center_x = 0
+        calibration_center_y = 0
+        calibration_radius = 0
+        print(f"  No edge points detected in calibration frame. Average radius set to 0.")
+
+    print(f"  Frame {calib_frame_num}: {calibration_results['num_edge_points']} edge points detected")
+
+    # Save calibration edge data
+    np.savez(OUTPUT_DATA_PATH / f"calibration_frame_{calib_frame_num}.npz",
+             edge_points=calibration_results['edge_points'],
+             frame_number=calib_frame_num)
+
+    # Plot calibration frame
+    fig = plot_edge_points(calibration_results['cropped_image'], calibration_results['edge_points'])
+    fig.savefig(OUTPUT_IMG_PATH / f"calibration_frame_{calib_frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
+    plt.close(fig)
+
+    return calibration_radius
+
 def main():
 
     # Set base paths
@@ -173,15 +224,6 @@ def main():
         'adaptive_threshold': True
     }
 
-    # Calibration frame parameters
-    calibration_params = {
-        'filter_size': ProcessingConfig.CALIBRATION_FILTER_SIZE,
-        'canny_low': ProcessingConfig.CALIBRATION_CANNY_LOW,
-        'canny_high': ProcessingConfig.CALIBRATION_CANNY_HIGH,
-        'min_object_size': ProcessingConfig.CALIBRATION_MIN_OBJECT_SIZE,
-        'adaptive_threshold': False
-    }
-
     # Check if video path exists
     if not os.path.exists(VIDEO_PATH):
         print(f"{VIDEO_PATH} does not exist.")
@@ -202,48 +244,10 @@ def main():
     ending_frame = ProcessingConfig.DEFAULT_ENDING_FRAME
     frame_range = ending_frame - starting_frame
 
-    # Calibration frame
-    # Read calibration frame
-    calib_frame_num = starting_frame + ProcessingConfig.CALIBRATION_FRAME_OFFSET
-    video.set(cv2.CAP_PROP_POS_FRAMES, calib_frame_num)
-    ret, frame = video.read()
-
-    if not ret:
-        print("Error reading calibration frame.")
-
-    # Process calibration frame
-    calibration_results = process_frame_edge(frame, crop_params, sigma=5, **calibration_params)
-
-    # Calculate centroid and average radius from edge points
-    calibration_edge_points = calibration_results['edge_points']
-    if len(calibration_edge_points) > 0:
-        calibration_center_x = np.mean(calibration_edge_points[:, 0])
-        calibration_center_y = np.mean(calibration_edge_points[:, 1])
-        distances_from_center = np.sqrt((calibration_edge_points[:, 0] - calibration_center_x)**2,
-                                        (calibration_edge_points[:, 1] - calibration_center_y)**2)
-        calibration_radius = np.mean(distances_from_center)
-        print(f"  Calibration frame average radius: {calibration_radius:.2f} pixels")
-    else:
-        calibration_center_x = 0
-        calibration_center_y = 0
-        calibration_radius = 0
-        print(f"  No edge points detected in calibration frame. Average radius set to 0.")
-
-
-    print(f"  Frame {calib_frame_num}: {calibration_results['num_edge_points']} edge points detected")
-
-    # Save calibration edge data
-    np.savez(OUTPUT_DATA_PATH / f"calibration_frame_{calib_frame_num}.npz",
-             edge_points=calibration_results['edge_points'],
-             frame_number=calib_frame_num)
-
-    # Plot calibration frame
-    fig = plot_edge_points(calibration_results['cropped_image'], calibration_results['edge_points'])
-    fig.savefig(OUTPUT_IMG_PATH / f"calibration_frame_{calib_frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
-    plt.close(fig)
+   # Calibration frame
+    calibration_radius = calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_PATH)
 
     # Process all the frames
-
     frame_data = []
     processed_count = 0
     skipped_count = 0
