@@ -3,6 +3,8 @@ UI Builder
 Contains all UI building logic and widgets
 """
 
+import sys
+from io import StringIO
 import customtkinter as ctk
 from config import UIConfig, SliderConfig, SerialConfig, get_slider_params, processing_config
 from popup_windows import VideoPopup, ViewDataPopup, ExportPopup, SettingsPopup, HelpPopup, CropPopup
@@ -481,6 +483,13 @@ class UIFrame(ctk.CTkFrame):
             font=self.master.custom_font
             )
         output_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
+
+        self.output_text = ctk.CTkTextbox(
+            output_panel,
+            fg_color=UIConfig.COLOR_BG_SECONDARY
+        )
+        self.output_text.pack(fill="both", expand=True, padx=UIConfig.PADDING_MEDIUM, pady=UIConfig.PADDING_MEDIUM)
+        self.output_text.configure(state="disabled")
 
     def create_slider(self, parent, name, text, row, is_float=False):
         """Helper function to create a slider and its label."""

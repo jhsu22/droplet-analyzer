@@ -11,11 +11,17 @@ if sys.platform != "darwin":
 
 from ui_builder import UIFrame
 from config import UIConfig, PathConfig, processing_config
-from image_processing import crop_image
+from image_processing import crop_image, calibrate
 
 import cv2
 from PIL import Image
 
+def set_paths(self):
+    # Set base paths
+    self.VIDEO_PATH = PathConfig.DEFAULT_VIDEO_FILE
+    self.OUTPUT_DATA_PATH = PathConfig.OUTPUT_EDGE_DATA
+    self.OUTPUT_IMG_PATH = PathConfig.OUTPUT_EDGE_PLOTS
+    self.OUTPUT_BINARY_PATH = PathConfig.OUTPUT_BINARY_EDGES
 
 def resource_path(relative_path):
     # Get absolute path to resource, works for dev and for PyInstaller
@@ -27,6 +33,22 @@ def resource_path(relative_path):
 
     return base_path / relative_path
 
+class TextboxRedirector:
+    """Redirects stdout to a CTkTextbox widget"""
+    def __init__(self, textbox_widget):
+        self.textbox = textbox_widget
+
+    def write(self, text):
+        self.textbox.after(0, self.insert_text, text)
+
+    def insert_text(self, text):
+        self.textbox.configure(state="normal")
+        self.textbox.insert("end", text)
+        self.textbox.see("end")
+        self.textbox.configure(state="disabled")
+
+    def flush(self):
+        pass
 
 class App(ctk.CTk):
 
@@ -46,6 +68,15 @@ class App(ctk.CTk):
         self._load_fonts()
         self._configure_window()
         self._create_ui()
+
+        # Create textbox widget
+        output_textbox = self.frame.output_text
+        redirector = TextboxRedirector(output_textbox)
+
+        sys.stdout = redirector
+        sys.stderr = redirector
+
+        print("---Application Started ---")
 
     def _setup_paths(self):
         # Initialize asset paths
@@ -214,6 +245,9 @@ class App(ctk.CTk):
     def start_calibration(self):
         current_frame = int(self.frame.video_slider.get())
         print(f"Starting calibration onf frame {current_frame}")
+
+        calibration_radius = calibrate(starting_frame=current_frame, crop_params=processing_config, video=self.video_capture,
+                                       OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH, OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH)
 
         self.is_calibrated = True
         self.frame.start_analysis_button.configure(state="normal")

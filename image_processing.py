@@ -200,13 +200,7 @@ def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_P
 
     return calibration_radius
 
-def main():
-
-    # Set base paths
-    VIDEO_PATH = PathConfig.DEFAULT_VIDEO_FILE
-    OUTPUT_DATA_PATH = PathConfig.OUTPUT_EDGE_DATA
-    OUTPUT_IMG_PATH = PathConfig.OUTPUT_EDGE_PLOTS
-    OUTPUT_BINARY_PATH = PathConfig.OUTPUT_BINARY_EDGES
+def main(self):
 
     # Create output directories if they don't exist
     PathConfig.create_output_directories()
@@ -224,13 +218,13 @@ def main():
     }
 
     # Check if video path exists
-    if not os.path.exists(VIDEO_PATH):
-        print(f"{VIDEO_PATH} does not exist.")
+    if not os.path.exists(self.VIDEO_PATH):
+        print(f"{self.VIDEO_PATH} does not exist.")
         print("Place video path in 'test_data' as 'test_video.mov'")
         return
 
     # Open video
-    video = cv2.VideoCapture(str(VIDEO_PATH))
+    video = cv2.VideoCapture(str(self.VIDEO_PATH))
 
     # Get video properties
     video_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -244,7 +238,7 @@ def main():
     frame_range = ending_frame - starting_frame
 
    # Calibration frame
-    calibration_radius = calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_PATH)
+    calibration_radius = calibrate(starting_frame, crop_params, video, self.OUTPUT_DATA_PATH, self.OUTPUT_IMG_PATH)
 
     # Process all the frames
     frame_data = []
@@ -277,18 +271,18 @@ def main():
             continue
 
         # Save edge data
-        np.savez(OUTPUT_DATA_PATH / f"frame_{frame_num}.npz",
+        np.savez(self.OUTPUT_DATA_PATH / f"frame_{frame_num}.npz",
                  edge_points=results['edge_points'],
                  frame_number=frame_num,
                  frame_index=i)
 
         # Plot frame
         fig = plot_edge_points(results['cropped_image'], results['edge_points'])
-        fig.savefig(OUTPUT_IMG_PATH / f"frame_{frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
+        fig.savefig(self.OUTPUT_IMG_PATH / f"frame_{frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
         plt.close(fig)
 
         # Save binary edge image
-        cv2.imwrite(str(OUTPUT_BINARY_PATH / f"frame_{frame_num}.png"), results['binary_edge_image'])
+        cv2.imwrite(str(self.OUTPUT_BINARY_PATH / f"frame_{frame_num}.png"), results['binary_edge_image'])
 
         # Store summary data
         frame_data.append({
