@@ -705,6 +705,14 @@ class CropPopup(BasePopup):
             PopupConfig.CROP_POPUP_HEIGHT
         )
 
+        # Save and exit button
+        ctk.CTkButton(
+            self.content_frame,
+            text="Save & Close",
+            font = self.parent.custom_font,
+            command=self.save_and_close
+        ).pack(side="bottom", anchor="se", pady=(UIConfig.PADDING_MEDIUM, 0), padx=10)
+
         # Blank variables for crop dragging
         self.x_start = None
         self.y_start = None
@@ -744,14 +752,6 @@ class CropPopup(BasePopup):
 
         else:
             ctk.CTkLabel(self.content_frame, text="No video loaded.").pack()
-
-        # Save and exit button
-        ctk.CTkButton(
-            self.content_frame,
-            text="Save & Close",
-            font = self.parent.custom_font,
-            command=self.save_and_close
-        ).pack(side="right", anchor="s", pady=(UIConfig.PADDING_MEDIUM, 0), padx=10)
 
     def on_button_press(self, event):
         # Record starting position
