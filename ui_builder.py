@@ -188,35 +188,11 @@ class UIFrame(ctk.CTkFrame):
         image_container = ctk.CTkFrame(top_row, fg_color="transparent")
         image_container.grid(row=0, column=0, sticky="nsew", padx=(0, UIConfig.PADDING_MEDIUM), pady=(UIConfig.PADDING_SMALL, UIConfig.PADDING_SMALL))
 
-        image_panel = ctk.CTkFrame(
-            image_container,
-            border_width=UIConfig.HEADER_BORDER_WIDTH,
-            border_color=UIConfig.COLOR_BORDER,
-            fg_color=UIConfig.COLOR_BG_PRIMARY
-        )
-        image_panel.pack(fill="both", expand=True, pady=(8, 0))
-
-        image_title = ctk.CTkLabel(
-            image_container,
-            text=f" {UIConfig.PANEL_TITLE_IMAGE} ",
-            text_color=UIConfig.COLOR_TEXT_PRIMARY,
-            font=self.master.custom_font,
-            fg_color=UIConfig.COLOR_BG_PRIMARY
-        )
-        image_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
-
-        self.image_label = ctk.CTkLabel(
-            image_panel,
-            text="(Droplet Preview)",
-            text_color=UIConfig.COLOR_TEXT_PRIMARY,
-        )
-        self.image_label.place(relx=0.5, rely=0.5, anchor="center")
-
         video_control_frame = ctk.CTkFrame(
             image_container,
             fg_color="transparent",
         )
-        video_control_frame.pack(fill="x", pady=(UIConfig.PADDING_SMALL, 0))
+        video_control_frame.pack(side="bottom", fill="x", pady=(UIConfig.PADDING_SMALL, 0))
 
         video_control_frame.grid_columnconfigure(0, weight=1) # Slider column
         video_control_frame.grid_columnconfigure(1, weight=0) # Label column
@@ -238,6 +214,30 @@ class UIFrame(ctk.CTkFrame):
             font=self.master.custom_font
         )
         self.frame_number_label.grid(row=0, column=1, sticky="e", padx=(0, UIConfig.PADDING_SMALL))
+
+        self.image_panel = ctk.CTkFrame(
+            image_container,
+            border_width=UIConfig.HEADER_BORDER_WIDTH,
+            border_color=UIConfig.COLOR_BORDER,
+            fg_color=UIConfig.COLOR_BG_PRIMARY
+        )
+        self.image_panel.pack(fill="both", expand=True, pady=(8, 0))
+
+        image_title = ctk.CTkLabel(
+            image_container,
+            text=f" {UIConfig.PANEL_TITLE_IMAGE} ",
+            text_color=UIConfig.COLOR_TEXT_PRIMARY,
+            font=self.master.custom_font,
+            fg_color=UIConfig.COLOR_BG_PRIMARY
+        )
+        image_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
+
+        self.image_label = ctk.CTkLabel(
+            self.image_panel,
+            text="(Droplet Preview)",
+            text_color=UIConfig.COLOR_TEXT_PRIMARY,
+        )
+        self.image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
 
         # Parameters panel with container
         parameters_container = ctk.CTkFrame(top_row, fg_color="transparent")
@@ -276,20 +276,6 @@ class UIFrame(ctk.CTkFrame):
         self.slider_params = get_slider_params()
         self.sliders = {}
         self.slider_labels = {}
-
-        # === CROP PARAMETERS ===
-        crop_title = ctk.CTkLabel(
-            param_inner,
-            text="Crop Parameters",
-            text_color=UIConfig.COLOR_TEXT_ACCENT,
-            font=self.master.custom_font_bold
-        )
-        crop_title.grid(row=0, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_SMALL, pady=(UIConfig.PADDING_LARGE, UIConfig.PADDING_MEDIUM))
-
-        self.create_slider(param_inner, "x_start", "X Start:", 1)
-        self.create_slider(param_inner, "y_start", "Y Start:", 2)
-        self.create_slider(param_inner, "x_end", "X End:", 3)
-        self.create_slider(param_inner, "y_end", "Y End:", 4)
 
         # === FILTERING & SMOOTHING PARAMETERS ===
         canny_title = ctk.CTkLabel(

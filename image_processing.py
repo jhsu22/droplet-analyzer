@@ -51,16 +51,13 @@ def crop_image(frame, crop_params):
     :return: Cropped image (ndarray)
     """
 
-    # Convert to grayscale
-    video_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
     # Crop image
-    initial_x_crop = crop_params['initial_x_crop']
-    initial_y_crop = crop_params['initial_y_crop']
-    x_max = crop_params['x_max']
-    y_max = crop_params['y_max']
+    initial_x_crop = int(crop_params.x_start)
+    initial_y_crop = int(crop_params.y_start)
+    x_max = int(crop_params.x_end)
+    y_max = int(crop_params.y_end)
 
-    imgcrop = video_gray[initial_y_crop:y_max, initial_x_crop:x_max]
+    imgcrop = frame[initial_y_crop:y_max, initial_x_crop:x_max]
 
     return imgcrop
 
@@ -88,7 +85,9 @@ def process_frame_edge(frame, crop_params,
              cropped image, filtered image, binary edge image, edge coordinates, and number of edge points
     """
 
-    imgcrop = crop_image(frame, crop_params)
+    imgcrop_color = crop_image(frame, crop_params)
+
+    imgcrop = cv2.cvtColor(imgcrop_color, cv2.COLOR_BGR2GRAY)
 
     # Apply a median filter to the image to smooth noise
     im_med = cv2.medianBlur(imgcrop, filter_size)

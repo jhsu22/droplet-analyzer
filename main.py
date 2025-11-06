@@ -10,7 +10,8 @@ if sys.platform != "darwin":
     from tkextrafont import Font
 
 from ui_builder import UIFrame
-from config import UIConfig, PathConfig
+from config import UIConfig, PathConfig, processing_config
+from image_processing import crop_image
 
 import cv2
 from PIL import Image
@@ -31,6 +32,8 @@ class App(ctk.CTk):
 
     def __init__(self):
         super().__init__()
+
+        self.is_drawing_frame = False
 
         # State variables
         self.video_capture = None
@@ -92,6 +95,8 @@ class App(ctk.CTk):
         self.frame = UIFrame(master=self)
         self.frame.grid(row=0, column=0, sticky="nsew")
 
+        self.frame.image_panel.bind("<Configure>", lambda e: self.frame.image_label.configure)
+
     def load_video(self, video_path):
         # Load video, update UI controls, and show first frame
         if self.video_capture:
@@ -124,38 +129,87 @@ class App(ctk.CTk):
 
     def show_frame(self, frame_num):
         # Seeks to specific frame and displays it
-
-        if not self.video_capture:
+        if self.is_drawing_frame:
             return
 
+        try:
+            # Update drawing frame flag
+            self.is_drawing_frame = True
+
+            if not self.video_capture:
+                return
+
+            # Get frame and read it
+            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+            ret, frame = self.video_capture.read()
+
+            if ret:
+                # Convert and crop image
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                cropped_frame = crop_image(frame=rgb_frame, crop_params=processing_config)
+
+                image = Image.fromarray(cropped_frame)
+
+                # Get panel dimensions
+                panel_width = self.frame.image_panel.winfo_width()
+                panel_height = self.frame.image_panel.winfo_height()
+
+                # Resize image based on limiting dimension
+                if panel_width > 1 and panel_height > 1:
+                    image_aspect = image.width / image.height
+                    panel_aspect = panel_width / panel_height
+
+                    if image_aspect > panel_aspect:
+                        new_width = panel_width
+                        new_height = int(new_width / image_aspect)
+                    else:
+                        new_height = panel_height
+                        new_width = int(new_height * image_aspect)
+
+                # Resize the image
+                image_resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+                # Create CTkImage
+                ctk_image = ctk.CTkImage(light_image=image_resized, dark_image=image_resized, size=(new_width, new_height))
+
+                # Update the label
+                self.frame.image_label.configure(image=ctk_image, text="")
+                self.frame.image_label.image = ctk_image
+
+                # Update slider and its label
+                self.frame.video_slider.set(frame_num)
+                self.frame.frame_number_label.configure(text=f"Frame {frame_num}/{int(self.num_frames - 1)}")
+
+            else: # Video ended
+                self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset
+
+        finally:
+            self.is_drawing_frame = False
+
+    def get_current_frame(self):
+        # Gets current frame as a cv2 frame
+        if not self.video_capture:
+            return None
+
+        # Frame number from slider
+        frame_num = int(self.frame.video_slider.get())
+
+        # Get frame
         self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+
         ret, frame = self.video_capture.read()
 
         if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(frame)
+            return frame
+        else:
+            return None
 
-            # Force UI to update for correct dimensions
-            self.frame.image_label.update_idletasks()
+    def _on_image_panel_configure(self, event):
 
-            # Resize image to fit label
-            label_width = self.frame.image_label.winfo_width()
-            label_height = self.frame.image_label.winfo_height()
-            if label_width > 1 and label_height > 1:
-                image = image.resize((label_width, label_height), Image.Resampling.LANCZOS)
+        current_frame = int(self.frame.video_slider.get())
 
-            ctk_image = ctk.CTkImage(light_image=image, dark_image=image, size=(label_width, label_height))
-
-            self.frame.image_label.configure(image=ctk_image, text="")
-
-            self.frame.image_label.image = ctk_image
-
-            # Update slider and label
-            self.frame.video_slider.set(frame_num)
-            self.frame.frame_number_label.configure(text=f"Frame {frame_num}/{int(self.num_frames - 1)}")
-
-        else: # Video ended
-            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset
+        self.show_frame(current_frame)
 
     def start_calibration(self):
         current_frame = int(self.frame.video_slider.get())

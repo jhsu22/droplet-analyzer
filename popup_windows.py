@@ -6,6 +6,7 @@ Contains all popup dialog classes with consistent styling
 import customtkinter as ctk
 from tkinter import filedialog
 import cv2
+from PIL import Image, ImageTk
 from config import UIConfig, PopupConfig, PathConfig, ProcessingConfig
 
 
@@ -704,7 +705,105 @@ class CropPopup(BasePopup):
             PopupConfig.CROP_POPUP_HEIGHT
         )
 
-        display_width = PopupConfig.CROP_POPUP_WIDTH - 50
-        display_height = PopupConfig.CROP_POPUP_HEIGHT - 50
+        # Blank variables for crop dragging
+        self.x_start = None
+        self.y_start = None
+        self.x_final = None
+        self.y_final = None
+        self.rect = None
 
-        image.thumbnail((display_width, display_height), ctk.Image.Resampling.LANCZOS)
+        # Get current video frame
+        cv2_frame = self.parent.get_current_frame()
+
+        if cv2_frame is not None:
+
+            self.pil_image = Image.fromarray(cv2.cvtColor(cv2_frame, cv2.COLOR_BGR2RGB))
+
+            max_width = PopupConfig.CROP_POPUP_WIDTH
+            max_height = PopupConfig.CROP_POPUP_HEIGHT - 50
+
+            self.display_image = self.pil_image.copy()
+            self.display_image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+
+            self.photo_image = ImageTk.PhotoImage(self.display_image)
+
+            canvas_width, canvas_height = self.display_image.size
+
+            self.canvas = ctk.CTkCanvas(
+                self.content_frame,
+                width=canvas_width,
+                height=canvas_height
+            )
+            self.canvas.create_image(0, 0, anchor="nw", image=self.photo_image)
+            self.canvas.pack()
+
+            # Bind mouse actions to methods
+            self.canvas.bind("<ButtonPress-1>", self.on_button_press)
+            self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+            self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
+
+        else:
+            ctk.CTkLabel(self.content_frame, text="No video loaded.").pack()
+
+        # Save and exit button
+        ctk.CTkButton(
+            self.content_frame,
+            text="Save & Close",
+            font = self.parent.custom_font,
+            command=self.save_and_close
+        ).pack(side="right", anchor="s", pady=(UIConfig.PADDING_MEDIUM, 0), padx=10)
+
+    def on_button_press(self, event):
+        # Record starting position
+        self.x_start = event.x
+        self.y_start = event.y
+
+        # Delete any existing rectangles
+        if self.rect:
+            self.canvas.delete(self.rect)
+
+        # Create new rectangle at starting position
+        self.rect = self.canvas.create_rectangle(self.x_start, self.y_start, event.x, event.y, outline="red")
+
+    def on_mouse_drag(self, event):
+        # Update rectangle position
+        self.x_current = event.x
+        self.y_current = event.y
+
+        self.canvas.coords(self.rect, self.x_start, self.y_start, self.x_current, self.y_current)
+
+    def on_button_release(self, event):
+        # Finalize crop
+        self.x_final = event.x
+        self.y_final = event.y
+
+    def save_and_close(self):
+        from config import processing_config
+
+        # Get final rectangle coordinates
+        x0 = min(self.x_start, self.x_final)
+        y0 = min(self.y_start, self.y_final)
+        x1 = max(self.x_start, self.x_final)
+        y1 = max(self.y_start, self.y_final)
+
+        # Calculate scale factor of thumbnail to original image
+        scale_x = self.pil_image.width / self.display_image.width
+        scale_y = self.pil_image.height / self.display_image.height
+
+        # Scale rectangle coordinates
+        scaled_x0 = x0 * scale_x
+        scaled_y0 = y0 * scale_y
+        scaled_x1 = x1 * scale_x
+        scaled_y1 = y1 * scale_y
+
+        # Apply crop
+        processing_config.x_start = scaled_x0
+        processing_config.y_start = scaled_y0
+        processing_config.x_end = scaled_x1
+        processing_config.y_end = scaled_y1
+
+        # Update UI
+        self.parent.show_frame(int(self.parent.frame.video_slider.get()))
+
+        # Exit window
+        self.destroy()
