@@ -93,7 +93,7 @@ def process_frame_edge(frame, crop_params,
     im_med = cv2.medianBlur(imgcrop, filter_size)
 
     # Apply a gaussian blur to smooth edges
-    im_gaussian = cv2.GaussianBlur(im_med, (5, 5), sigma)
+    im_gaussian = cv2.GaussianBlur(im_med, (0, 0), sigma)
 
     # Find edges using canny
     edges = cv2.Canny(im_gaussian, canny_low, canny_high, apertureSize=3)
@@ -116,6 +116,8 @@ def process_frame_edge(frame, crop_params,
     results = {
         'cropped_image': imgcrop,
         'filtered_image': im_med,
+        'gaussian_image': im_gaussian,
+        'canny_edges': edges,
         'binary_edge_image': clean_edges,
         'edge_points': edge_points,
         'num_edge_points': len(edge_points)
@@ -188,6 +190,8 @@ def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_P
 
     print(f"  Frame {calib_frame_num}: {calibration_results['num_edge_points']} edge points detected")
 
+    calibration_results["calibration_radius"] = calibration_radius
+
     # Save calibration edge data
     np.savez(OUTPUT_DATA_PATH / f"calibration_frame_{calib_frame_num}.npz",
              edge_points=calibration_results['edge_points'],
@@ -198,7 +202,7 @@ def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_P
     fig.savefig(OUTPUT_IMG_PATH / f"calibration_frame_{calib_frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
     plt.close(fig)
 
-    return calibration_radius
+    return calibration_results
 
 def main(self):
 

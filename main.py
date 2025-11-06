@@ -10,18 +10,12 @@ if sys.platform != "darwin":
     from tkextrafont import Font
 
 from ui_builder import UIFrame
-from config import UIConfig, PathConfig, processing_config
-from image_processing import crop_image, calibrate
+from config import UIConfig, PathConfig, processing_config, PopupConfig
+from image_processing import crop_image, calibrate, process_frame_edge
+from popup_windows import CalibrationPopup
 
 import cv2
 from PIL import Image
-
-def set_paths(self):
-    # Set base paths
-    self.VIDEO_PATH = PathConfig.DEFAULT_VIDEO_FILE
-    self.OUTPUT_DATA_PATH = PathConfig.OUTPUT_EDGE_DATA
-    self.OUTPUT_IMG_PATH = PathConfig.OUTPUT_EDGE_PLOTS
-    self.OUTPUT_BINARY_PATH = PathConfig.OUTPUT_BINARY_EDGES
 
 def resource_path(relative_path):
     # Get absolute path to resource, works for dev and for PyInstaller
@@ -63,7 +57,10 @@ class App(ctk.CTk):
         self.is_calibrated = False
         self.num_frames = 0
 
+        self.debug_popup = None
+
         self._setup_paths()
+        self._set_output_paths()
         self._load_theme()
         self._load_fonts()
         self._configure_window()
@@ -77,6 +74,13 @@ class App(ctk.CTk):
         sys.stderr = redirector
 
         print("---Application Started ---")
+
+    def _set_output_paths(self):
+        # Set base paths
+        self.VIDEO_PATH = PathConfig.DEFAULT_VIDEO_FILE
+        self.OUTPUT_DATA_PATH = PathConfig.OUTPUT_EDGE_DATA
+        self.OUTPUT_IMG_PATH = PathConfig.OUTPUT_EDGE_PLOTS
+        self.OUTPUT_BINARY_PATH = PathConfig.OUTPUT_BINARY_EDGES
 
     def _setup_paths(self):
         # Initialize asset paths
@@ -127,6 +131,29 @@ class App(ctk.CTk):
         self.frame.grid(row=0, column=0, sticky="nsew")
 
         self.frame.image_panel.bind("<Configure>", lambda e: self.frame.image_label.configure)
+
+    def _create_ctk_image(self, np_array, panel_width, panel_height):
+        # Convert a np array to a CTkImage and fit it to a panel
+
+        if np_array is None or panel_width < 1 or panel_height < 1:
+            return None
+
+        image = Image.fromarray(np_array)
+        image_aspect = image.width / image.height
+        panel_aspect = panel_width / panel_height
+
+        if image_aspect > panel_aspect:
+            new_width = panel_width
+            new_height = int(new_width / image_aspect)
+        else:
+            new_height = panel_height
+            new_width = int(new_height * image_aspect)
+
+        image_resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        return ctk.CTkImage(light_image=image_resized, dark_image=image_resized, size=(new_width, new_height))
+
+
 
     def load_video(self, video_path):
         # Load video, update UI controls, and show first frame
@@ -244,10 +271,22 @@ class App(ctk.CTk):
 
     def start_calibration(self):
         current_frame = int(self.frame.video_slider.get())
-        print(f"Starting calibration onf frame {current_frame}")
+        print(f"Starting calibration on frame {current_frame}")
 
-        calibration_radius = calibrate(starting_frame=current_frame, crop_params=processing_config, video=self.video_capture,
+        calibration_results = calibrate(starting_frame=current_frame, crop_params=processing_config, video=self.video_capture,
                                        OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH, OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH)
+        panel_width = (PopupConfig.DEBUG_POPUP_WIDTH // 3)
+        panel_height = PopupConfig.DEBUG_POPUP_HEIGHT - 150
+
+        images_for_popup = {
+            "median": self._create_ctk_image(calibration_results.get("filtered_image"), panel_width, panel_height),
+            "gaussian": self._create_ctk_image(calibration_results.get("gaussian_image"), panel_width, panel_height),
+            "canny": self._create_ctk_image(calibration_results.get("canny_edges"), panel_width, panel_height)
+        }
+
+        CalibrationPopup(self, images=images_for_popup)
+
+        calibration_radius = calibration_results.get("calibration_radius", 0)
 
         self.is_calibrated = True
         self.frame.start_analysis_button.configure(state="normal")

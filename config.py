@@ -252,6 +252,9 @@ class PopupConfig:
     CROP_POPUP_WIDTH = 800
     CROP_POPUP_HEIGHT = 600
 
+    DEBUG_POPUP_WIDTH = 800
+    DEBUG_POPUP_HEIGHT = 400
+
     # Export formats
     EXPORT_FORMATS = ["CSV", "Excel (XLSX)", "JSON", "NumPy (NPZ)"]
     DEFAULT_EXPORT_FORMAT = "CSV"

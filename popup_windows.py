@@ -365,7 +365,7 @@ class VideoPopup(BasePopup):
 
     def load_video(self):
         """Load the selected video file"""
-        print(f"Loading video: {self.selected_video_path}")
+        print(f"Loaded video file.")
         if self.selected_video_path:
             self.parent.load_video(self.selected_video_path)
         self.destroy()
@@ -807,3 +807,67 @@ class CropPopup(BasePopup):
 
         # Exit window
         self.destroy()
+
+class CalibrationPopup(BasePopup):
+    """Popup for viewing intermediate image processing steps"""
+    def __init__(self, parent, images):
+        super().__init__(
+            parent,
+            "CALIBRATION RESULTS",
+            PopupConfig.DEBUG_POPUP_WIDTH,
+            PopupConfig.DEBUG_POPUP_HEIGHT
+        )
+
+        # Configure content frame to hold images
+        self.grid_columnconfigure([0, 1, 2], weight=1, uniform="group")
+        self.grid_rowconfigure(0, weight=1)
+
+        # Create frames for each image
+        median_frame = self.create_image_box(self.content_frame, "MEDIAN FILTER", 0)
+        median_image_label = ctk.CTkLabel(median_frame, text="")
+        median_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        gaussian_frame = self.create_image_box(self.content_frame, "GAUSSIAN FILTER", 1)
+        gaussian_image_label = ctk.CTkLabel(gaussian_frame, text="")
+        gaussian_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        canny_frame = self.create_image_box(self.content_frame, "CANNY FILTER", 2)
+        canny_image_label = ctk.CTkLabel(canny_frame, text="")
+        canny_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        # Display the images
+        median_image_label.configure(image=images.get("median"))
+        median_image_label.image = images.get("median")
+
+        gaussian_image_label.configure(image=images.get("gaussian"))
+        gaussian_image_label.image = images.get("gaussian")
+
+        canny_image_label.configure(image=images.get("canny"))
+        canny_image_label.image = images.get("canny")
+
+        # Close button
+        ctk.CTkButton(
+            self.content_frame,
+            text="Close",
+            font = self.parent.custom_font,
+            command=self.destroy
+        ).grid(row=1, column=2, pady=UIConfig.PADDING_SMALL, sticky="se")
+
+    def create_image_box(self, parent, title, column):
+        # Function to create a frame for an image
+        frame = ctk.CTkFrame(
+            parent,
+            border_width=UIConfig.HEADER_BORDER_WIDTH,
+            border_color=UIConfig.COLOR_BORDER,
+            fg_color=UIConfig.COLOR_BG_SECONDARY
+        )
+        frame.grid(row=0, column=column, sticky="nsew", padx=(0, UIConfig.PADDING_SMALL) if column < 2 else 0)
+
+        title_label = ctk.CTkLabel(
+            frame,
+            text=title,
+            font=self.parent.custom_font,
+        )
+        title_label.pack(pady=(5, 0))
+
+        return frame

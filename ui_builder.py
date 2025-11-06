@@ -7,7 +7,7 @@ import sys
 from io import StringIO
 import customtkinter as ctk
 from config import UIConfig, SliderConfig, SerialConfig, get_slider_params, processing_config
-from popup_windows import VideoPopup, ViewDataPopup, ExportPopup, SettingsPopup, HelpPopup, CropPopup
+from popup_windows import VideoPopup, ViewDataPopup, ExportPopup, SettingsPopup, HelpPopup, CropPopup, CalibrationPopup
 
 
 class UIFrame(ctk.CTkFrame):
