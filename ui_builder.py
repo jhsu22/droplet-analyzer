@@ -3,9 +3,11 @@ UI Builder
 Contains all UI building logic and widgets
 """
 
+import sys
+from io import StringIO
 import customtkinter as ctk
-from config import UIConfig, SliderConfig, SerialConfig, get_slider_params
-from popup_windows import VideoPopup, ViewDataPopup, ExportPopup, SettingsPopup, HelpPopup
+from config import UIConfig, SliderConfig, SerialConfig, get_slider_params, processing_config
+from popup_windows import VideoPopup, ViewDataPopup, ExportPopup, SettingsPopup, HelpPopup, CropPopup, CalibrationPopup
 
 
 class UIFrame(ctk.CTkFrame):
@@ -127,24 +129,41 @@ class UIFrame(ctk.CTkFrame):
         )
         self.help_button.pack(side="left", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_MEDIUM)
 
-        # Start/Stop button next to settings
-        def start_stop_text(startstop):
-            if startstop.current_state == "off":
-                startstop.configure(text="Start Analysis")
-                startstop.current_state = "on"
-            else:
-                startstop.configure(text="Stop Analysis")
-                startstop.current_state = "off"
-
-        start_stop_button = ctk.CTkButton(
+        # Start/Stop button
+        self.start_analysis_button = ctk.CTkButton(
             button_frame,
             text="Start Analysis",
             font=self.master.custom_font_bold,
-            height=UIConfig.START_BUTTON_HEIGHT
+            width=UIConfig.BUTTON_WIDTH,
+            height=UIConfig.START_BUTTON_HEIGHT,
+            command=self.master.start_analysis,
+            state="disabled"
         )
-        start_stop_button.current_state = "on"
-        start_stop_button.configure(command=lambda: start_stop_text(start_stop_button))
-        start_stop_button.pack(side="right", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+        self.start_analysis_button.current_state = "on"
+        self.start_analysis_button.pack(side="right", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        # Calibrate button
+        self.calibrate_button = ctk.CTkButton(
+            button_frame,
+            text="Calibrate",
+            font=self.master.custom_font_bold,
+            height=UIConfig.START_BUTTON_HEIGHT,
+            width=UIConfig.BUTTON_WIDTH,
+            command=self.master.start_calibration,
+            state="disabled"
+        )
+        self.calibrate_button.pack(side="right", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        # Video crop button
+        self.crop_button = ctk.CTkButton(
+            button_frame,
+            text="Crop",
+            font=self.master.custom_font_bold,
+            width=UIConfig.BUTTON_WIDTH,
+            height=UIConfig.START_BUTTON_HEIGHT,
+            command=self.open_crop_popup
+        )
+        self.crop_button.pack(side="right", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
 
         # === CONTENT AREA ===
         content_frame = ctk.CTkFrame(
@@ -171,13 +190,40 @@ class UIFrame(ctk.CTkFrame):
         image_container = ctk.CTkFrame(top_row, fg_color="transparent")
         image_container.grid(row=0, column=0, sticky="nsew", padx=(0, UIConfig.PADDING_MEDIUM), pady=(UIConfig.PADDING_SMALL, UIConfig.PADDING_SMALL))
 
-        image_panel = ctk.CTkFrame(
+        video_control_frame = ctk.CTkFrame(
+            image_container,
+            fg_color="transparent",
+        )
+        video_control_frame.pack(side="bottom", fill="x", pady=(UIConfig.PADDING_SMALL, 0))
+
+        video_control_frame.grid_columnconfigure(0, weight=1) # Slider column
+        video_control_frame.grid_columnconfigure(1, weight=0) # Label column
+
+        self.video_slider = ctk.CTkSlider(
+            video_control_frame,
+            from_=0,
+            to=1,                                   # Placeholder
+            number_of_steps=1,                      # Placeholder
+            command=self.master.seek_video_frame,
+            state="disabled"
+        )
+        self.video_slider.grid(row=0, column=0, sticky="ew", padx=(UIConfig.PADDING_SMALL, UIConfig.PADDING_SMALL), pady=UIConfig.PADDING_SMALL)
+
+        self.frame_number_label = ctk.CTkLabel(
+            video_control_frame,
+            text="Frame 0/0",                           # Placeholder
+            text_color=UIConfig.COLOR_TEXT_PRIMARY,
+            font=self.master.custom_font
+        )
+        self.frame_number_label.grid(row=0, column=1, sticky="e", padx=(0, UIConfig.PADDING_SMALL))
+
+        self.image_panel = ctk.CTkFrame(
             image_container,
             border_width=UIConfig.HEADER_BORDER_WIDTH,
             border_color=UIConfig.COLOR_BORDER,
             fg_color=UIConfig.COLOR_BG_PRIMARY
         )
-        image_panel.pack(fill="both", expand=True, pady=(8, 0))
+        self.image_panel.pack(fill="both", expand=True, pady=(8, 0))
 
         image_title = ctk.CTkLabel(
             image_container,
@@ -188,12 +234,12 @@ class UIFrame(ctk.CTkFrame):
         )
         image_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
 
-        image_label = ctk.CTkLabel(
-            image_panel,
+        self.image_label = ctk.CTkLabel(
+            self.image_panel,
             text="(Droplet Preview)",
             text_color=UIConfig.COLOR_TEXT_PRIMARY,
         )
-        image_label.place(relx=0.5, rely=0.5, anchor="center")
+        self.image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
 
         # Parameters panel with container
         parameters_container = ctk.CTkFrame(top_row, fg_color="transparent")
@@ -229,214 +275,76 @@ class UIFrame(ctk.CTkFrame):
         param_inner.grid_columnconfigure(2, weight=0)
 
         # Get slider parameters
-        slider_params = get_slider_params()
+        self.slider_params = get_slider_params()
+        self.sliders = {}
+        self.slider_labels = {}
 
-        # === CROP PARAMETERS ===
-        crop_title = ctk.CTkLabel(
-            param_inner,
-            text="Crop Parameters",
-            text_color=UIConfig.COLOR_TEXT_ACCENT,
-            font=self.master.custom_font_bold
-        )
-        crop_title.grid(row=0, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_SMALL, pady=(UIConfig.PADDING_LARGE, UIConfig.PADDING_MEDIUM))
-
-        # X Start slider
-        ctk.CTkLabel(param_inner, text="X Start:", font=self.master.custom_font).grid(
-            row=1, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.x_start_slider = ctk.CTkSlider(
-            param_inner,
-            from_=slider_params['x_start']['from_'],
-            to=slider_params['x_start']['to'],
-            number_of_steps=slider_params['x_start']['number_of_steps']
-        )
-        self.x_start_slider.set(slider_params['x_start']['default'])
-        self.x_start_slider.grid(row=1, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.x_start_value = ctk.CTkLabel(
-            param_inner,
-            text=str(slider_params['x_start']['default']),
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
-        )
-        self.x_start_value.grid(row=1, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.x_start_slider.configure(command=lambda v: self.x_start_value.configure(text=f"{int(v)}"))
-
-        # Y Start slider
-        ctk.CTkLabel(param_inner, text="Y Start:", font=self.master.custom_font).grid(
-            row=2, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.y_start_slider = ctk.CTkSlider(
-            param_inner,
-            from_=slider_params['y_start']['from_'],
-            to=slider_params['y_start']['to'],
-            number_of_steps=slider_params['y_start']['number_of_steps']
-        )
-        self.y_start_slider.set(slider_params['y_start']['default'])
-        self.y_start_slider.grid(row=2, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.y_start_value = ctk.CTkLabel(
-            param_inner,
-            text=str(slider_params['y_start']['default']),
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
-        )
-        self.y_start_value.grid(row=2, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.y_start_slider.configure(command=lambda v: self.y_start_value.configure(text=f"{int(v)}"))
-
-        # X End slider
-        ctk.CTkLabel(param_inner, text="X End:", font=self.master.custom_font).grid(
-            row=3, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.x_end_slider = ctk.CTkSlider(
-            param_inner,
-            from_=slider_params['x_end']['from_'],
-            to=slider_params['x_end']['to'],
-            number_of_steps=slider_params['x_end']['number_of_steps']
-        )
-        self.x_end_slider.set(slider_params['x_end']['default'])
-        self.x_end_slider.grid(row=3, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.x_end_value = ctk.CTkLabel(
-            param_inner,
-            text=str(slider_params['x_end']['default']),
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
-        )
-        self.x_end_value.grid(row=3, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.x_end_slider.configure(command=lambda v: self.x_end_value.configure(text=f"{int(v)}"))
-
-        # Y End slider
-        ctk.CTkLabel(param_inner, text="Y End:", font=self.master.custom_font).grid(
-            row=4, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.y_end_slider = ctk.CTkSlider(
-            param_inner,
-            from_=slider_params['y_end']['from_'],
-            to=slider_params['y_end']['to'],
-            number_of_steps=slider_params['y_end']['number_of_steps']
-        )
-        self.y_end_slider.set(slider_params['y_end']['default'])
-        self.y_end_slider.grid(row=4, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.y_end_value = ctk.CTkLabel(
-            param_inner,
-            text=str(slider_params['y_end']['default']),
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
-        )
-        self.y_end_value.grid(row=4, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.y_end_slider.configure(command=lambda v: self.y_end_value.configure(text=f"{int(v)}"))
-
-        # === CANNY PARAMETERS ===
+        # === FILTERING & SMOOTHING PARAMETERS ===
         canny_title = ctk.CTkLabel(
             param_inner,
-            text="Canny Parameters",
+            text="Filtering & Smoothing",
             text_color=UIConfig.COLOR_TEXT_ACCENT,
             font=self.master.custom_font_bold
         )
         canny_title.grid(row=5, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_SMALL, pady=(UIConfig.PADDING_LARGE, UIConfig.PADDING_MEDIUM))
 
-        # Filter Size slider
-        ctk.CTkLabel(param_inner, text="Filter Size:", font=self.master.custom_font).grid(
-            row=6, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.filter_slider = ctk.CTkSlider(
-            param_inner,
-            from_=slider_params['filter_size']['from_'],
-            to=slider_params['filter_size']['to'],
-            number_of_steps=slider_params['filter_size']['number_of_steps']
-        )
-        self.filter_slider.set(slider_params['filter_size']['default'])
-        self.filter_slider.grid(row=6, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.filter_value = ctk.CTkLabel(
-            param_inner,
-            text=str(slider_params['filter_size']['default']),
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
-        )
-        self.filter_value.grid(row=6, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.filter_slider.configure(command=lambda v: self.filter_value.configure(text=f"{int(v)}"))
+        self.create_slider(param_inner, "filter_size", "Median Filter Size:", 6)
+        self.create_slider(param_inner, "sigma", "Gaussian Blur Sigma:", 7, is_float=True)
 
-        # Canny Low slider
-        ctk.CTkLabel(param_inner, text="Canny Low:", font=self.master.custom_font).grid(
-            row=7, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.canny_low_slider = ctk.CTkSlider(
+        # === CANNY DETECTION PARAMETERS ===
+        canny_title = ctk.CTkLabel(
             param_inner,
-            from_=slider_params['canny_low']['from_'],
-            to=slider_params['canny_low']['to'],
-            number_of_steps=slider_params['canny_low']['number_of_steps']
+            text="Canny Edge Detection",
+            text_color=UIConfig.COLOR_TEXT_ACCENT,
+            font=self.master.custom_font_bold
         )
-        self.canny_low_slider.set(slider_params['canny_low']['default'])
-        self.canny_low_slider.grid(row=7, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.canny_low_value = ctk.CTkLabel(
-            param_inner,
-            text=str(slider_params['canny_low']['default']),
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
-        )
-        self.canny_low_value.grid(row=7, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.canny_low_slider.configure(command=lambda v: self.canny_low_value.configure(text=f"{int(v)}"))
+        canny_title.grid(row=8, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_SMALL,
+                         pady=(UIConfig.PADDING_LARGE, UIConfig.PADDING_MEDIUM))
 
-        # Canny High slider
-        ctk.CTkLabel(param_inner, text="Canny High:", font=self.master.custom_font).grid(
-            row=8, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.canny_high_slider = ctk.CTkSlider(
-            param_inner,
-            from_=slider_params['canny_high']['from_'],
-            to=slider_params['canny_high']['to'],
-            number_of_steps=slider_params['canny_high']['number_of_steps']
-        )
-        self.canny_high_slider.set(slider_params['canny_high']['default'])
-        self.canny_high_slider.grid(row=8, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.canny_high_value = ctk.CTkLabel(
-            param_inner,
-            text=str(slider_params['canny_high']['default']),
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
-        )
-        self.canny_high_value.grid(row=8, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.canny_high_slider.configure(command=lambda v: self.canny_high_value.configure(text=f"{int(v)}"))
+        self.create_slider(param_inner, "canny_low", "Canny Low Threshold:", 9)
+        self.create_slider(param_inner, "canny_high", "Canny High Threshold:", 10)
 
-        # Min Object Size slider
-        ctk.CTkLabel(param_inner, text="Min Object Size:", font=self.master.custom_font).grid(
-            row=9, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.min_obj_slider = ctk.CTkSlider(
+        canny_note = ctk.CTkLabel(
             param_inner,
-            from_=slider_params['min_object_size']['from_'],
-            to=slider_params['min_object_size']['to'],
-            number_of_steps=slider_params['min_object_size']['number_of_steps']
+            text="Note: low threshold must be <= high threshold",
+            text_color=UIConfig.COLOR_TEXT_ACCENT,
+            font=(self.master.custom_font),
         )
-        self.min_obj_slider.set(slider_params['min_object_size']['default'])
-        self.min_obj_slider.grid(row=9, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.min_obj_value = ctk.CTkLabel(
-            param_inner,
-            text=str(slider_params['min_object_size']['default']),
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
-        )
-        self.min_obj_value.grid(row=9, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.min_obj_slider.configure(command=lambda v: self.min_obj_value.configure(text=f"{int(v)}"))
+        canny_note.grid(row=11, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_MEDIUM,
+                         pady=(0, UIConfig.PADDING_SMALL))
 
-        # Sigma slider
-        ctk.CTkLabel(param_inner, text="Sigma:", font=self.master.custom_font).grid(
-            row=10, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
-        )
-        self.sigma_slider = ctk.CTkSlider(
+        # === EDGE CLEANING PARAMETERS ===
+        canny_title = ctk.CTkLabel(
             param_inner,
-            from_=slider_params['sigma']['from_'],
-            to=slider_params['sigma']['to'],
-            number_of_steps=slider_params['sigma']['number_of_steps']
+            text="Edge Cleaning",
+            text_color=UIConfig.COLOR_TEXT_ACCENT,
+            font=self.master.custom_font_bold
         )
-        self.sigma_slider.set(slider_params['sigma']['default'])
-        self.sigma_slider.grid(row=10, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
-        self.sigma_value = ctk.CTkLabel(
+        canny_title.grid(row=12, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_SMALL,
+                         pady=(UIConfig.PADDING_LARGE, UIConfig.PADDING_MEDIUM))
+
+        self.create_slider(param_inner, "min_object_size", "Min Object Size:", 13)
+
+        # === CLAHE PARAMETERS ===
+        self.clahe_var = ctk.BooleanVar(value=processing_config.clahe_enabled)
+        clahe_title = ctk.CTkSwitch(
             param_inner,
-            text=f"{slider_params['sigma']['default']:.2f}",
-            width=SliderConfig.VALUE_LABEL_WIDTH,
-            font=self.master.custom_font
+            text="CLAHE Contrast Enhancement",
+            font=self.master.custom_font_bold,
+            text_color=UIConfig.COLOR_TEXT_ACCENT,
+            corner_radius=1,
+            button_length=10,
+            variable=self.clahe_var,
+            command=self.toggle_clahe,
+            onvalue=True,
+            offvalue=False
         )
-        self.sigma_value.grid(row=10, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
-        self.sigma_slider.configure(command=lambda v: self.sigma_value.configure(text=f"{v:.2f}"))
+        clahe_title.grid(row=14, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_SMALL,
+                         pady=(UIConfig.PADDING_LARGE, UIConfig.PADDING_MEDIUM))
+
+        self.create_slider(param_inner, "clahe_clip_limit", "CLAHE Clip Limit:", 15, is_float=True)
+        self.create_slider(param_inner, "clahe_tile_grid_size", "CLAHE Tile Size:", 16)
+
 
         # Serial connection panel with container
         serial_container = ctk.CTkFrame(top_row, fg_color="transparent")
@@ -455,7 +363,7 @@ class UIFrame(ctk.CTkFrame):
             text=f" {UIConfig.PANEL_TITLE_SERIAL} ",
             text_color=UIConfig.COLOR_TEXT_PRIMARY,
             font=self.master.custom_font,
-            fg_color=UIConfig.COLOR_BG_PRIMARY
+            fg_color=UIConfig.COLOR_BG_PRIMARY,
         )
         serial_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
 
@@ -595,6 +503,68 @@ class UIFrame(ctk.CTkFrame):
             )
         output_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
 
+        self.output_text = ctk.CTkTextbox(
+            output_panel,
+            fg_color=UIConfig.COLOR_BG_SECONDARY
+        )
+        self.output_text.pack(fill="both", expand=True, padx=UIConfig.PADDING_MEDIUM, pady=UIConfig.PADDING_MEDIUM)
+        self.output_text.configure(state="disabled")
+
+    def create_slider(self, parent, name, text, row, is_float=False):
+        """Helper function to create a slider and its label."""
+        ctk.CTkLabel(parent, text=text, font=self.master.custom_font).grid(
+            row=row, column=0, sticky="w", padx=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM), pady=UIConfig.PADDING_SMALL
+        )
+
+        params = self.slider_params[name]
+        slider = ctk.CTkSlider(
+            parent,
+            from_=params['from_'],
+            to=params['to'],
+            number_of_steps=params['number_of_steps']
+        )
+        slider.set(params['default'])
+        slider.grid(row=row, column=1, sticky="ew", pady=UIConfig.PADDING_SMALL)
+
+        value_label = ctk.CTkLabel(
+            parent,
+            width=SliderConfig.VALUE_LABEL_WIDTH,
+            font=self.master.custom_font
+        )
+        value_label.grid(row=row, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
+
+        if name == 'filter_size':
+            slider.configure(command=lambda v, n=name: self.update_parameter(n, v, is_float=True))
+            initial_ksize = int(params['default'] * 2 + 1)
+            value_label.configure(text=str(initial_ksize))
+        elif is_float:
+            slider.configure(command=lambda v, n=name: self.update_parameter(n, v, is_float=True))
+            value_label.configure(text=f"{params['default']:.2f}")
+        else:
+            slider.configure(command=lambda v, n=name: self.update_parameter(n, v))
+            value_label.configure(text=str(int(params['default'])))
+
+        self.sliders[name] = slider
+        self.slider_labels[name] = value_label
+
+    def update_parameter(self, name, value, is_float=False):
+        """Update the label for a slider and the corresponding config value."""
+        if name == 'filter_size':
+            ksize = int(value) * 2 + 1
+            self.slider_labels[name].configure(text=str(ksize))
+            setattr(processing_config, name, ksize)
+            return
+
+        elif is_float:
+            self.slider_labels[name].configure(text=f"{float(value):.2f}")
+            setattr(processing_config, name, float(value))
+        else:
+            self.slider_labels[name].configure(text=f"{int(value)}")
+            setattr(processing_config, name, int(value))
+
+    def toggle_clahe(self):
+        processing_config.clahe_enabled = self.clahe_var.get()
+
     # === POPUP CALLBACK METHODS ===
 
     def open_video_popup(self):
@@ -616,3 +586,7 @@ class UIFrame(ctk.CTkFrame):
     def open_help_popup(self):
         """Open Help popup window"""
         HelpPopup(self.master)
+
+    def open_crop_popup(self):
+        """Open crop popup window"""
+        CropPopup(self.master)

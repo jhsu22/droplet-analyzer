@@ -6,6 +6,7 @@ Contains all popup dialog classes with consistent styling
 import customtkinter as ctk
 from tkinter import filedialog
 import cv2
+from PIL import Image, ImageTk
 from config import UIConfig, PopupConfig, PathConfig, ProcessingConfig
 
 
@@ -16,16 +17,8 @@ def enumerate_cameras(max_tested=10):
     :param max_tested: Maximum number of camera indices to test
     :return: List of available camera indices
     """
+    # TODO: Implement camera enumeration
     available = []
-    for i in range(max_tested):
-        # Use CAP_DSHOW backend for Windows compatibility
-        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW) if cv2.CAP_DSHOW else cv2.VideoCapture(i)
-        if cap.isOpened():
-            # Try to read a frame to verify it actually works
-            ret, _ = cap.read()
-            if ret:
-                available.append(i)
-            cap.release()
     return available
 
 
@@ -96,7 +89,7 @@ class VideoPopup(BasePopup):
             parent,
             "VIDEO",
             PopupConfig.VIDEO_POPUP_WIDTH,
-            PopupConfig.VIDEO_POPUP_HEIGHT
+            PopupConfig.VIDEO_POPUP_HEIGHT,
         )
 
         self.selected_video_path = None
@@ -106,7 +99,7 @@ class VideoPopup(BasePopup):
         self.content_frame.grid_columnconfigure(1, weight=1)
         self.content_frame.grid_rowconfigure(4, weight=1)
 
-        # Live vs loaded video switch (always visible at row 0)
+        # Live vs loaded video switch (always visible at top row)
         self.live_switch = ctk.CTkSwitch(
             self.content_frame,
             text="Live Video Feed",
@@ -358,107 +351,31 @@ class VideoPopup(BasePopup):
             self.file_path_entry.insert(0, filename)
             self.load_button.configure(state="normal")
 
-            # Update info display (placeholder)
+            # Update info display
             self.file_info_text.configure(state="normal")
             self.file_info_text.delete("0.0", "end")
             self.file_info_text.insert("0.0", f"File: {filename}\n\n")
-            self.file_info_text.insert("end", "Video information will be displayed here after loading.")
+            self.file_info_text.insert("end", "TODO: Display video information")
             self.file_info_text.configure(state="disabled")
 
     def test_camera(self):
         """Test the selected camera and display information"""
-        if not self.available_cameras:
-            self.test_status_label.configure(text="No cameras available", text_color=UIConfig.COLOR_STATUS_DISCONNECTED)
-            return
-
-        # Get selected camera index
-        camera_selection = self.camera_combo.get()
-        camera_index = int(camera_selection.split()[-1])
-
-        self.test_status_label.configure(text="Testing...", text_color=UIConfig.COLOR_TEXT_PRIMARY)
-        self.update()
-
-        try:
-            # Open camera
-            cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW) if cv2.CAP_DSHOW else cv2.VideoCapture(camera_index)
-
-            if not cap.isOpened():
-                self.test_status_label.configure(text="Failed to open", text_color=UIConfig.COLOR_STATUS_DISCONNECTED)
-                self.live_info_text.configure(state="normal")
-                self.live_info_text.delete("0.0", "end")
-                self.live_info_text.insert("0.0", f"Error: Could not open Camera {camera_index}")
-                self.live_info_text.configure(state="disabled")
-                return
-
-            # Apply resolution settings if not Auto
-            resolution = self.resolution_combo.get()
-            if resolution != "Auto (Default)":
-                width, height = map(int, resolution.split()[0].split('x'))
-                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-
-            # Apply FPS settings if not Auto
-            fps_setting = self.fps_combo.get()
-            if fps_setting != "Auto (Default)":
-                fps_value = int(fps_setting.split()[0])
-                cap.set(cv2.CAP_PROP_FPS, fps_value)
-
-            # Read a test frame
-            ret, frame = cap.read()
-
-            if ret:
-                # Get actual camera properties
-                actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                actual_fps = cap.get(cv2.CAP_PROP_FPS)
-
-                self.test_status_label.configure(text="✓ Success", text_color=UIConfig.COLOR_STATUS_CONNECTED)
-
-                # Display camera info
-                self.live_info_text.configure(state="normal")
-                self.live_info_text.delete("0.0", "end")
-                self.live_info_text.insert("0.0", f"Camera {camera_index} Test Results:\n\n")
-                self.live_info_text.insert("end", f"Resolution: {actual_width}x{actual_height}\n")
-                self.live_info_text.insert("end", f"FPS: {actual_fps:.2f}\n")
-                self.live_info_text.insert("end", f"Frame shape: {frame.shape}\n")
-                self.live_info_text.insert("end", f"\nCamera is ready to use!")
-                self.live_info_text.configure(state="disabled")
-
-                self.selected_camera_index = camera_index
-            else:
-                self.test_status_label.configure(text="No frame", text_color=UIConfig.COLOR_STATUS_DISCONNECTED)
-                self.live_info_text.configure(state="normal")
-                self.live_info_text.delete("0.0", "end")
-                self.live_info_text.insert("0.0", f"Error: Camera {camera_index} opened but could not read frame")
-                self.live_info_text.configure(state="disabled")
-
-            cap.release()
-
-        except Exception as e:
-            self.test_status_label.configure(text="Error", text_color=UIConfig.COLOR_STATUS_DISCONNECTED)
-            self.live_info_text.configure(state="normal")
-            self.live_info_text.delete("0.0", "end")
-            self.live_info_text.insert("0.0", f"Error testing camera:\n{str(e)}")
-            self.live_info_text.configure(state="disabled")
+        # TODO: Implement camera testing logic
+        pass
 
     def load_video(self):
-        """Load the selected video file (to be implemented)"""
-        print(f"Loading video: {self.selected_video_path}")
-        # TODO: Integrate with video processing logic
+        """Load the selected video file"""
+        print(f"Loaded video file.")
+        if self.selected_video_path:
+            self.parent.load_video(self.selected_video_path)
         self.destroy()
 
     def start_live_feed(self):
-        """Start live camera feed (to be implemented)"""
-        if not self.selected_camera_index and self.available_cameras:
-            # Use first available camera if not tested
-            camera_selection = self.camera_combo.get()
-            self.selected_camera_index = int(camera_selection.split()[-1])
-
-        print(f"Starting live feed from camera {self.selected_camera_index}")
+        """Start live camera feed"""
+        # TODO: Implement live feed logic
+        print(f"Starting live feed")
         print(f"Resolution: {self.resolution_combo.get()}")
         print(f"FPS: {self.fps_combo.get()}")
-        # TODO: Integrate with video processing logic
         self.destroy()
 
 
@@ -777,3 +694,180 @@ class HelpPopup(BasePopup):
             font=self.parent.custom_font,
             command=self.destroy
         ).pack(side="right", pady=(UIConfig.PADDING_MEDIUM, 0))
+
+class CropPopup(BasePopup):
+    """Popup for cropping documentation"""
+    def __init__(self, parent):
+        super().__init__(
+            parent,
+            "CROP",
+            PopupConfig.CROP_POPUP_WIDTH,
+            PopupConfig.CROP_POPUP_HEIGHT
+        )
+
+        # Save and exit button
+        ctk.CTkButton(
+            self.content_frame,
+            text="Save & Close",
+            font = self.parent.custom_font,
+            command=self.save_and_close
+        ).pack(side="bottom", anchor="se", pady=(UIConfig.PADDING_MEDIUM, 0), padx=10)
+
+        # Blank variables for crop dragging
+        self.x_start = None
+        self.y_start = None
+        self.x_final = None
+        self.y_final = None
+        self.rect = None
+
+        # Get current video frame
+        cv2_frame = self.parent.get_current_frame()
+
+        if cv2_frame is not None:
+
+            self.pil_image = Image.fromarray(cv2.cvtColor(cv2_frame, cv2.COLOR_BGR2RGB))
+
+            max_width = PopupConfig.CROP_POPUP_WIDTH
+            max_height = PopupConfig.CROP_POPUP_HEIGHT - 50
+
+            self.display_image = self.pil_image.copy()
+            self.display_image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+
+            self.photo_image = ImageTk.PhotoImage(self.display_image)
+
+            canvas_width, canvas_height = self.display_image.size
+
+            self.canvas = ctk.CTkCanvas(
+                self.content_frame,
+                width=canvas_width,
+                height=canvas_height
+            )
+            self.canvas.create_image(0, 0, anchor="nw", image=self.photo_image)
+            self.canvas.pack()
+
+            # Bind mouse actions to methods
+            self.canvas.bind("<ButtonPress-1>", self.on_button_press)
+            self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+            self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
+
+        else:
+            ctk.CTkLabel(self.content_frame, text="No video loaded.").pack()
+
+    def on_button_press(self, event):
+        # Record starting position
+        self.x_start = event.x
+        self.y_start = event.y
+
+        # Delete any existing rectangles
+        if self.rect:
+            self.canvas.delete(self.rect)
+
+        # Create new rectangle at starting position
+        self.rect = self.canvas.create_rectangle(self.x_start, self.y_start, event.x, event.y, outline="red")
+
+    def on_mouse_drag(self, event):
+        # Update rectangle position
+        self.x_current = event.x
+        self.y_current = event.y
+
+        self.canvas.coords(self.rect, self.x_start, self.y_start, self.x_current, self.y_current)
+
+    def on_button_release(self, event):
+        # Finalize crop
+        self.x_final = event.x
+        self.y_final = event.y
+
+    def save_and_close(self):
+        from config import processing_config
+
+        # Get final rectangle coordinates
+        x0 = min(self.x_start, self.x_final)
+        y0 = min(self.y_start, self.y_final)
+        x1 = max(self.x_start, self.x_final)
+        y1 = max(self.y_start, self.y_final)
+
+        # Calculate scale factor of thumbnail to original image
+        scale_x = self.pil_image.width / self.display_image.width
+        scale_y = self.pil_image.height / self.display_image.height
+
+        # Scale rectangle coordinates
+        scaled_x0 = x0 * scale_x
+        scaled_y0 = y0 * scale_y
+        scaled_x1 = x1 * scale_x
+        scaled_y1 = y1 * scale_y
+
+        # Apply crop
+        processing_config.x_start = scaled_x0
+        processing_config.y_start = scaled_y0
+        processing_config.x_end = scaled_x1
+        processing_config.y_end = scaled_y1
+
+        # Update UI
+        self.parent.show_frame(int(self.parent.frame.video_slider.get()))
+
+        # Exit window
+        self.destroy()
+
+class CalibrationPopup(BasePopup):
+    """Popup for viewing intermediate image processing steps"""
+    def __init__(self, parent, images):
+        super().__init__(
+            parent,
+            "CALIBRATION RESULTS",
+            PopupConfig.DEBUG_POPUP_WIDTH,
+            PopupConfig.DEBUG_POPUP_HEIGHT
+        )
+
+        # Configure content frame to hold images
+        self.grid_columnconfigure([0, 1, 2], weight=1, uniform="group")
+        self.grid_rowconfigure(0, weight=1)
+
+        # Create frames for each image
+        median_frame = self.create_image_box(self.content_frame, "MEDIAN FILTER", 0)
+        median_image_label = ctk.CTkLabel(median_frame, text="")
+        median_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        gaussian_frame = self.create_image_box(self.content_frame, "GAUSSIAN BLUR", 1)
+        gaussian_image_label = ctk.CTkLabel(gaussian_frame, text="")
+        gaussian_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        final_frame = self.create_image_box(self.content_frame, "FINAL EDGE", 2)
+        final_image_label = ctk.CTkLabel(final_frame, text="")
+        final_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+
+        # Display the images
+        median_image_label.configure(image=images.get("median"))
+        median_image_label.image = images.get("median")
+
+        gaussian_image_label.configure(image=images.get("gaussian"))
+        gaussian_image_label.image = images.get("gaussian")
+
+        final_image_label.configure(image=images.get("final"))
+        final_image_label.image = images.get("final")
+
+        # Close button
+        ctk.CTkButton(
+            self.content_frame,
+            text="Close",
+            font = self.parent.custom_font,
+            command=self.destroy
+        ).grid(row=1, column=2, pady=UIConfig.PADDING_SMALL, sticky="se")
+
+    def create_image_box(self, parent, title, column):
+        # Function to create a frame for an image
+        frame = ctk.CTkFrame(
+            parent,
+            border_width=UIConfig.HEADER_BORDER_WIDTH,
+            border_color=UIConfig.COLOR_BORDER,
+            fg_color=UIConfig.COLOR_BG_SECONDARY
+        )
+        frame.grid(row=0, column=column, sticky="nsew", padx=(0, UIConfig.PADDING_SMALL) if column < 2 else 0)
+
+        title_label = ctk.CTkLabel(
+            frame,
+            text=title,
+            font=self.parent.custom_font,
+        )
+        title_label.pack(pady=(5, 0))
+
+        return frame

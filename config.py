@@ -20,7 +20,7 @@ class UIConfig:
     FONT_SIZE_NORMAL = 14
     FONT_SIZE_TITLE = 14
 
-    # Colors (Catppuccin Mocha theme)
+    # Colors
     COLOR_BG_PRIMARY = '#1e1e2e'
     COLOR_BG_SECONDARY = '#181825'
     COLOR_BORDER = '#45475a'
@@ -51,9 +51,9 @@ class UIConfig:
     PANEL_TITLE_OUTPUT = "OUTPUT"
 
     # Grid weights (for layout proportions)
-    GRID_WEIGHT_IMAGE = 7
-    GRID_WEIGHT_PARAMETERS = 8
-    GRID_WEIGHT_SERIAL = 7
+    GRID_WEIGHT_IMAGE = 8
+    GRID_WEIGHT_PARAMETERS = 7
+    GRID_WEIGHT_SERIAL = 6
 
 
 class ProcessingConfig:
@@ -71,14 +71,21 @@ class ProcessingConfig:
     DEFAULT_FILTER_SIZE = 3
     DEFAULT_CANNY_LOW = 25
     DEFAULT_CANNY_HIGH = 51
-    DEFAULT_MIN_OBJECT_SIZE = 100
-    DEFAULT_SIGMA = 3.0
+    DEFAULT_MIN_OBJECT_SIZE = 2
+    DEFAULT_MIN_SIZE_MULT = 0.33
+    DEFAULT_SIGMA = 2.5
 
     # Calibration frame parameters
     CALIBRATION_FILTER_SIZE = 15
     CALIBRATION_CANNY_LOW = 25
     CALIBRATION_CANNY_HIGH = 51
-    CALIBRATION_MIN_OBJECT_SIZE = 100
+    CALIBRATION_SIGMA = 2.5
+    CALIBRATION_MIN_OBJECT_SIZE = 2
+
+    # CLAHE contrast enhancement parameters
+    CONTRAST_ENHANCEMENT_ENABLED = True
+    CLAHE_CLIP_LIMIT = 2.0
+    CLAHE_TILE_GRID_SIZE = 8
 
     # Edge detection thresholds
     MIN_EDGE_POINTS = 5
@@ -90,6 +97,27 @@ class ProcessingConfig:
 
     # Progress reporting
     PROGRESS_REPORT_INTERVAL = 50  # Report every N frames
+
+
+class CurrentProcessingConfig:
+    """Holds the current, live values for image processing parameters."""
+    def __init__(self):
+        self.x_start = ProcessingConfig.DEFAULT_CROP['initial_x_crop']
+        self.y_start = ProcessingConfig.DEFAULT_CROP['initial_y_crop']
+        self.x_end = ProcessingConfig.DEFAULT_CROP['x_max']
+        self.y_end = ProcessingConfig.DEFAULT_CROP['y_max']
+        self.filter_size = ProcessingConfig.DEFAULT_FILTER_SIZE
+        self.canny_low = ProcessingConfig.DEFAULT_CANNY_LOW
+        self.canny_high = ProcessingConfig.DEFAULT_CANNY_HIGH
+        self.min_object_size = ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE
+        self.min_size_mult = ProcessingConfig.DEFAULT_MIN_SIZE_MULT
+        self.sigma = ProcessingConfig.DEFAULT_SIGMA
+        self.clahe_enabled = ProcessingConfig.CONTRAST_ENHANCEMENT_ENABLED
+        self.clahe_clip_limit = ProcessingConfig.CLAHE_CLIP_LIMIT
+        self.clahe_tile_grid_size = ProcessingConfig.CLAHE_TILE_GRID_SIZE
+
+# Create a single, importable instance of the live config
+processing_config = CurrentProcessingConfig()
 
 
 class SliderConfig:
@@ -105,8 +133,8 @@ class SliderConfig:
     Y_STEPS = 1080
 
     # Filter size range
-    FILTER_MIN = 1
-    FILTER_MAX = 25
+    FILTER_MIN = 0
+    FILTER_MAX = 12
     FILTER_STEPS = 12
 
     # Canny threshold ranges
@@ -114,15 +142,30 @@ class SliderConfig:
     CANNY_MAX = 255
     CANNY_STEPS = 255
 
-    # Min object size range
+    # 1st pass min object size range
     MIN_OBJ_MIN = 0
-    MIN_OBJ_MAX = 500
-    MIN_OBJ_STEPS = 500
+    MIN_OBJ_MAX = 50
+    MIN_OBJ_STEPS = 49
+
+    # 2nd pass min object size mult range
+    MIN_MULT_MIN = 0
+    MIN_MULT_MAX = 1
+    MIN_MULT_STEPS = 100
 
     # Sigma range
     SIGMA_MIN = 1.0
-    SIGMA_MAX = 4.0
-    SIGMA_STEPS = 100
+    SIGMA_MAX = 5.0
+    SIGMA_STEPS = 400
+
+    # CLAHE clip limit range
+    CLAHE_CLIP_MIN = 1.0
+    CLAHE_CLIP_MAX = 40.0
+    CLAHE_CLIP_STEPS = 390
+
+    # CLAHE tile size range
+    CLAHE_SIZE_MIN = 2
+    CLAHE_SIZE_MAX = 32
+    CLAHE_SIZE_STEPS = 30
 
     # Slider label width
     VALUE_LABEL_WIDTH = 50
@@ -177,7 +220,7 @@ class PathConfig:
     OUTPUT_BINARY_EDGES = OUTPUT_PATH / "binary_edges"
 
     # Default video file
-    DEFAULT_VIDEO_FILE = TEST_DATA_PATH / "test_video_2.mov"
+    DEFAULT_VIDEO_FILE = TEST_DATA_PATH / "test.mov"
 
     @classmethod
     def create_output_directories(cls):
@@ -225,6 +268,12 @@ class PopupConfig:
     HELP_POPUP_WIDTH = 650
     HELP_POPUP_HEIGHT = 550
 
+    CROP_POPUP_WIDTH = 800
+    CROP_POPUP_HEIGHT = 600
+
+    DEBUG_POPUP_WIDTH = 800
+    DEBUG_POPUP_HEIGHT = 400
+
     # Export formats
     EXPORT_FORMATS = ["CSV", "Excel (XLSX)", "JSON", "NumPy (NPZ)"]
     DEFAULT_EXPORT_FORMAT = "CSV"
@@ -235,49 +284,33 @@ class PopupConfig:
     # Help text content
     HELP_TEXT = """PENDANT DROPLET ANALYZER - HELP
 
-OVERVIEW
-This application performs automated edge detection and analysis of pendant droplets from video files.
-
 WORKFLOW
 1. Click 'Video' to load a video file
-2. Adjust crop parameters to select the droplet region
-3. Tune Canny edge detection parameters for optimal edge detection
-4. Click 'Start Analysis' to process the video
+2. Click 'Crop' and drag over the desired crop region
+3. Tune edge detection parameters on any test frame and check analysis with 'Calibrate' button
+4. Click 'Start Analysis' to process the entire video
 5. View results in the Output panel
 6. Export data using the 'Export' button
 
 PARAMETERS
-
-Crop Parameters:
-- X Start/Y Start: Top-left corner of crop region
-- X End/Y End: Bottom-right corner of crop region
-
-Canny Parameters:
 - Filter Size: Median filter kernel size (odd numbers, 1-25)
+- Sigma: Gaussian blur sigma value (1.0-5.0)
+
 - Canny Low: Lower threshold for edge detection (0-255)
 - Canny High: Upper threshold for edge detection (0-255)
+
 - Min Object Size: Minimum size of detected objects in pixels
-- Sigma: Gaussian blur sigma value (1.0-4.0)
+
+- CLAHE Clip Limit: Controls amount of contrast amplification
+- CLAHE Tile Size: Determine size of image splitting tiles
 
 SERIAL CONNECTION
 Connect to Arduino or other serial devices for hardware integration:
-- Select the correct COM port
+- Select the COM port that the device is connected to
 - Set the appropriate baud rate
 - Send commands via the command box
 
-KEYBOARD SHORTCUTS
-- Ctrl+O: Open video file
-- Ctrl+E: Export data
-- Ctrl+S: Open settings
-- F1: Show help
-
-TIPS
-- Start with default parameters and adjust incrementally
-- Use calibration frame to test parameter settings
-- Export data regularly to avoid loss
-- Check serial connection status before sending commands
-
-Version: 1.0.0
+Version: 0.4.0
 """
 
 
@@ -286,7 +319,7 @@ class AppConfig:
 
     # Application metadata
     APP_NAME = "Pendant Droplet Analyzer"
-    APP_VERSION = "1.0.0"
+    APP_VERSION = "0.4.0"
 
     # Debug settings
     DEBUG_MODE = False
@@ -343,7 +376,7 @@ def get_slider_params():
             'from_': SliderConfig.FILTER_MIN,
             'to': SliderConfig.FILTER_MAX,
             'number_of_steps': SliderConfig.FILTER_STEPS,
-            'default': ProcessingConfig.DEFAULT_FILTER_SIZE
+            'default': (ProcessingConfig.DEFAULT_FILTER_SIZE - 1) // 2
         },
         'canny_low': {
             'from_': SliderConfig.CANNY_MIN,
@@ -363,10 +396,28 @@ def get_slider_params():
             'number_of_steps': SliderConfig.MIN_OBJ_STEPS,
             'default': ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE
         },
+        'min_size_mult': {
+            'from_': SliderConfig.MIN_MULT_MIN,
+            'to': SliderConfig.MIN_MULT_MAX,
+            'number_of_steps': SliderConfig.MIN_MULT_STEPS,
+            'default': ProcessingConfig.DEFAULT_MIN_SIZE_MULT
+        },
         'sigma': {
             'from_': SliderConfig.SIGMA_MIN,
             'to': SliderConfig.SIGMA_MAX,
             'number_of_steps': SliderConfig.SIGMA_STEPS,
             'default': ProcessingConfig.DEFAULT_SIGMA
+        },
+        "clahe_clip_limit": {
+            'from_': SliderConfig.CLAHE_CLIP_MIN,
+            'to': SliderConfig.CLAHE_CLIP_MAX,
+            'number_of_steps': SliderConfig.CLAHE_CLIP_STEPS,
+            'default': ProcessingConfig.CLAHE_CLIP_LIMIT
+        },
+        "clahe_tile_grid_size": {
+            'from_': SliderConfig.CLAHE_SIZE_MIN,
+            'to': SliderConfig.CLAHE_SIZE_MAX,
+            'number_of_steps': SliderConfig.CLAHE_SIZE_STEPS,
+            'default': ProcessingConfig.CLAHE_TILE_GRID_SIZE
         }
     }
