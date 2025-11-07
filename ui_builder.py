@@ -323,8 +323,27 @@ class UIFrame(ctk.CTkFrame):
         canny_title.grid(row=12, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_SMALL,
                          pady=(UIConfig.PADDING_LARGE, UIConfig.PADDING_MEDIUM))
 
-        self.create_slider(param_inner, "min_object_size", "1st Pass Min Object Size:", 13)
-        self.create_slider(param_inner, "min_size_mult", "Adaptive Size Multiplier:", 14, is_float=True)
+        self.create_slider(param_inner, "min_object_size", "Min Object Size:", 13)
+
+        # === CLAHE PARAMETERS ===
+        self.clahe_var = ctk.BooleanVar(value=processing_config.clahe_enabled)
+        clahe_title = ctk.CTkSwitch(
+            param_inner,
+            text="CLAHE Contrast Enhancement",
+            font=self.master.custom_font_bold,
+            text_color=UIConfig.COLOR_TEXT_ACCENT,
+            corner_radius=1,
+            button_length=10,
+            variable=self.clahe_var,
+            command=self.toggle_clahe,
+            onvalue=True,
+            offvalue=False
+        )
+        clahe_title.grid(row=14, column=0, columnspan=3, sticky="w", padx=UIConfig.PADDING_SMALL,
+                         pady=(UIConfig.PADDING_LARGE, UIConfig.PADDING_MEDIUM))
+
+        self.create_slider(param_inner, "clahe_clip_limit", "CLAHE Clip Limit:", 15, is_float=True)
+        self.create_slider(param_inner, "clahe_tile_grid_size", "CLAHE Tile Size:", 16)
 
 
         # Serial connection panel with container
@@ -344,7 +363,7 @@ class UIFrame(ctk.CTkFrame):
             text=f" {UIConfig.PANEL_TITLE_SERIAL} ",
             text_color=UIConfig.COLOR_TEXT_PRIMARY,
             font=self.master.custom_font,
-            fg_color=UIConfig.COLOR_BG_PRIMARY
+            fg_color=UIConfig.COLOR_BG_PRIMARY,
         )
         serial_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
 
@@ -514,7 +533,11 @@ class UIFrame(ctk.CTkFrame):
         )
         value_label.grid(row=row, column=2, sticky="e", padx=(UIConfig.PADDING_MEDIUM, 0), pady=UIConfig.PADDING_SMALL)
 
-        if is_float:
+        if name == 'filter_size':
+            slider.configure(command=lambda v, n=name: self.update_parameter(n, v, is_float=True))
+            initial_ksize = int(params['default'] * 2 + 1)
+            value_label.configure(text=str(initial_ksize))
+        elif is_float:
             slider.configure(command=lambda v, n=name: self.update_parameter(n, v, is_float=True))
             value_label.configure(text=f"{params['default']:.2f}")
         else:
@@ -526,12 +549,21 @@ class UIFrame(ctk.CTkFrame):
 
     def update_parameter(self, name, value, is_float=False):
         """Update the label for a slider and the corresponding config value."""
-        if is_float:
+        if name == 'filter_size':
+            ksize = int(value) * 2 + 1
+            self.slider_labels[name].configure(text=str(ksize))
+            setattr(processing_config, name, ksize)
+            return
+
+        elif is_float:
             self.slider_labels[name].configure(text=f"{float(value):.2f}")
             setattr(processing_config, name, float(value))
         else:
             self.slider_labels[name].configure(text=f"{int(value)}")
             setattr(processing_config, name, int(value))
+
+    def toggle_clahe(self):
+        processing_config.clahe_enabled = self.clahe_var.get()
 
     # === POPUP CALLBACK METHODS ===
 

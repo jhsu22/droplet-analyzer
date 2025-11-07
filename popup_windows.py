@@ -827,13 +827,13 @@ class CalibrationPopup(BasePopup):
         median_image_label = ctk.CTkLabel(median_frame, text="")
         median_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
 
-        gaussian_frame = self.create_image_box(self.content_frame, "GAUSSIAN FILTER", 1)
+        gaussian_frame = self.create_image_box(self.content_frame, "GAUSSIAN BLUR", 1)
         gaussian_image_label = ctk.CTkLabel(gaussian_frame, text="")
         gaussian_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
 
-        canny_frame = self.create_image_box(self.content_frame, "CANNY FILTER", 2)
-        canny_image_label = ctk.CTkLabel(canny_frame, text="")
-        canny_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
+        final_frame = self.create_image_box(self.content_frame, "FINAL EDGE", 2)
+        final_image_label = ctk.CTkLabel(final_frame, text="")
+        final_image_label.pack(fill="both", expand=True, padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL)
 
         # Display the images
         median_image_label.configure(image=images.get("median"))
@@ -842,8 +842,8 @@ class CalibrationPopup(BasePopup):
         gaussian_image_label.configure(image=images.get("gaussian"))
         gaussian_image_label.image = images.get("gaussian")
 
-        canny_image_label.configure(image=images.get("canny"))
-        canny_image_label.image = images.get("canny")
+        final_image_label.configure(image=images.get("final"))
+        final_image_label.image = images.get("final")
 
         # Close button
         ctk.CTkButton(

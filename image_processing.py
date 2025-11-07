@@ -89,6 +89,14 @@ def process_frame_edge(frame, crop_params,
 
     imgcrop = cv2.cvtColor(imgcrop_color, cv2.COLOR_BGR2GRAY)
 
+    # Apply contrast enhancement if toggled on
+    if processing_config.clahe_enabled:
+        clahe = cv2.createCLAHE(
+            clipLimit=ProcessingConfig.CLAHE_CLIP_LIMIT,
+            tileGridSize=(ProcessingConfig.CLAHE_TILE_GRID_SIZE, ProcessingConfig.CLAHE_TILE_GRID_SIZE)
+        )
+        imgcrop = clahe.apply(imgcrop)
+
     # Apply a median filter to the image to smooth noise
     im_med = cv2.medianBlur(imgcrop, filter_size)
 
@@ -98,29 +106,56 @@ def process_frame_edge(frame, crop_params,
     # Find edges using canny
     edges = cv2.Canny(im_gaussian, canny_low, canny_high, apertureSize=3)
 
-    # First pass of cleaning noise using bweareaopen
-    clean_pass1 = bwareaopen(edges, min_object_size)
+    # Cleaning noise using bweareaopen
+    clean_edges = bwareaopen(edges, min_object_size)
 
-    # Extract edge point coordinates from first pass
-    pass1_points = extract_edge_points(clean_pass1)
-
-    # Dynamically calculated min object size for pass 2
-    min_size_adapted = np.floor(len(pass1_points) * min_size_mult)
-
-    # Second pass of cleaning noise using bweareaopen
-    clean_edges = bwareaopen(clean_pass1, min_size_adapted)
-
-    # Extract edge point coordinates from second
+    # Extract edge point coordinates
     edge_points = extract_edge_points(clean_edges)
+
+    # Apex curvature fitting
+    apex_radius = None
+
+    # Check for good amount of edge points
+    if len(edge_points) > 50:
+
+        # Find the lowest point on the droplet
+        apex_index = np.argmax(edge_points[:, 1])
+        apex_point = edge_points[apex_index]
+
+        # Find the width of the droplet
+        droplet_width = np.argmax(edge_points[:, 0])
+
+        # Take 20% of the droplet width on each side to use as the arc
+        measure_window_half = droplet_width * 0.2
+
+        apex_points = edge_points[np.abs(edge_points[:, 0] - apex_point[0]) < measure_window_half]
+
+        # Fit an ellipse to the apex points
+        if len(apex_points) > 5:
+            arc = cv2.fitEllipse(apex_points)
+
+            # Get radius of curvature at the apex
+            apex_radius = arc[1][0] / 2
+
+            # Visualize fit
+            cv2.ellipse(imgcrop_color, arc, (255, 0, 255), 2)
+
+            cv2.circle(imgcrop_color, tuple(np.int32(apex_point)), 5, (255, 255, 0), -1)
+
+            cv2.rectangle(imgcrop_color,
+                          (int(apex_point[0] - measure_window_half), int(apex_point[1] - 50)),
+                          (int(apex_point[0] + measure_window_half), int(apex_point[1])), (0, 255, 255), 1)
 
     results = {
         'cropped_image': imgcrop,
+        'cropped_image_color': imgcrop_color,
         'filtered_image': im_med,
         'gaussian_image': im_gaussian,
         'canny_edges': edges,
         'binary_edge_image': clean_edges,
         'edge_points': edge_points,
-        'num_edge_points': len(edge_points)
+        'num_edge_points': len(edge_points),
+        'apex_radius': apex_radius
     }
 
     return results
@@ -153,15 +188,6 @@ def plot_edge_points(cropped_image, edge_points):
 
 def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_PATH):
 
-    # Calibration frame parameters
-    calibration_params = {
-        'filter_size': ProcessingConfig.CALIBRATION_FILTER_SIZE,
-        'canny_low': ProcessingConfig.CALIBRATION_CANNY_LOW,
-        'canny_high': ProcessingConfig.CALIBRATION_CANNY_HIGH,
-        'min_object_size': ProcessingConfig.CALIBRATION_MIN_OBJECT_SIZE,
-        'adaptive_threshold': False
-    }
-
     # Read calibration frame
     calib_frame_num = starting_frame + ProcessingConfig.CALIBRATION_FRAME_OFFSET
     video.set(cv2.CAP_PROP_POS_FRAMES, calib_frame_num)
@@ -171,7 +197,16 @@ def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_P
         print("Error reading calibration frame.")
 
     # Process calibration frame
-    calibration_results = process_frame_edge(frame, crop_params, sigma=5, **calibration_params)
+    calibration_results = process_frame_edge(
+        frame,
+        crop_params=crop_params,
+        filter_size=processing_config.filter_size,
+        canny_low=processing_config.canny_low,
+        canny_high=processing_config.canny_high,
+        min_object_size=processing_config.min_object_size,
+        sigma=processing_config.sigma,
+        adaptive_threshold=False
+    )
 
     # Calculate centroid and average radius from edge points
     calibration_edge_points = calibration_results['edge_points']

@@ -275,13 +275,29 @@ class App(ctk.CTk):
 
         calibration_results = calibrate(starting_frame=current_frame, crop_params=processing_config, video=self.video_capture,
                                        OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH, OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH)
+
+        final_image_np = calibration_results.get("cropped_image_color")
+
+        if final_image_np is not None:
+
+            final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
+
+            panel_width = self.frame.image_panel.winfo_width()
+            panel_height = self.frame.image_panel.winfo_height()
+
+            ctk_image = self._create_ctk_image(final_image_rgb, panel_width, panel_height)
+
+            if ctk_image:
+                self.frame.image_label.configure(image=ctk_image, text="")
+                self.frame.image_label.image = ctk_image
+
         panel_width = (PopupConfig.DEBUG_POPUP_WIDTH // 3)
         panel_height = PopupConfig.DEBUG_POPUP_HEIGHT - 150
 
         images_for_popup = {
             "median": self._create_ctk_image(calibration_results.get("filtered_image"), panel_width, panel_height),
             "gaussian": self._create_ctk_image(calibration_results.get("gaussian_image"), panel_width, panel_height),
-            "canny": self._create_ctk_image(calibration_results.get("canny_edges"), panel_width, panel_height)
+            "final": self._create_ctk_image(calibration_results.get("binary_edge_image"), panel_width, panel_height)
         }
 
         CalibrationPopup(self, images=images_for_popup)
@@ -298,7 +314,13 @@ class App(ctk.CTk):
             return
 
         print("Starting analysis.")
+        # Create list to store results
+        self.analysis_results = []
         self.is_playing = True
+
+        self.frame.video_slider.set(0)
+
+        # Start processing loop
         self.update_video()
 
     def update_video(self):
@@ -306,13 +328,57 @@ class App(ctk.CTk):
             return
 
         current_frame = int(self.frame.video_slider.get())
+
         if current_frame < self.num_frames - 1:
+            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+            ret, frame = self.video_capture.read()
+
+            if ret:
+                frame_results = process_frame_edge(
+                    frame,
+                    crop_params=processing_config,
+                    filter_size=processing_config.filter_size,
+                    canny_low=processing_config.canny_low,
+                    canny_high=processing_config.canny_high,
+                    min_object_size=processing_config.min_object_size,
+                    sigma=processing_config.sigma,
+                    adaptive_threshold=True
+                )
+
+                radius = frame_results.get('apex_radius')
+                self.analysis_results.append({
+                    'frame_number': current_frame,
+                    'apex_radius': radius,
+                    'num_edge_points': frame_results.get('num_edge_points')
+                })
+                if current_frame % 50 == 0:
+                    if radius is not None:
+                        print(f"Frame {current_frame}: Apex Radius = {radius:.2f}")
+                    else:
+                        print(f"Frame {current_frame}: Apex fit failed.")
+
+                final_image_np = frame_results.get("cropped_image_color")
+
+                if final_image_np is not None:
+                    final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
+
+                    panel_width = self.frame.image_panel.winfo_width()
+                    panel_height = self.frame.image_panel.winfo_height()
+
+                    ctk_image = self._create_ctk_image(final_image_rgb, panel_width, panel_height)
+
+                    if ctk_image:
+                        self.frame.image_label.configure(image=ctk_image, text="")
+                        self.frame.image_label.image = ctk_image
+
             next_frame = current_frame + 1
-            self.show_frame(next_frame)
+            self.frame.video_slider.set(next_frame)
+            self.frame.frame_number_label.configure(text=f"Frame {next_frame}/{int(self.num_frames - 1)}")
 
             self.after(15, self.update_video)
         else:
             print("Analysis complete.")
+            print(f"Processsed {len(self.analysis_results)} frames.")
             self.is_playing = False
 
 def main():
