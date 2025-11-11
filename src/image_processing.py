@@ -123,28 +123,55 @@ def process_frame_edge(frame, crop_params,
         apex_point = edge_points[apex_index]
 
         # Find the width of the droplet
-        droplet_width = np.argmax(edge_points[:, 0])
+        droplet_width = np.max(edge_points[:, 0]) - np.min(edge_points[:, 0])
 
         # Take 20% of the droplet width on each side to use as the arc
         measure_window_half = droplet_width * 0.2
 
-        apex_points = edge_points[np.abs(edge_points[:, 0] - apex_point[0]) < measure_window_half]
+        # Define a vertical window to only get points near the apex
+        vertical_window = droplet_width * 0.2
 
-        # Fit an ellipse to the apex points
+        # Filter points by both x and y distance from apex
+        x_filter = np.abs(edge_points[:, 0] - apex_point[0]) < measure_window_half
+        y_filter = np.abs(edge_points[:, 1] - apex_point[1]) < vertical_window
+        apex_points = edge_points[x_filter & y_filter]
+
+        # Fit a polynomial to the apex points
         if len(apex_points) > 5:
-            arc = cv2.fitEllipse(apex_points)
 
-            # Get radius of curvature at the apex
-            apex_radius = arc[1][0] / 2
+            # Shift points to be relative to the apex
+            x_shifted = apex_points[:, 0] - apex_point[0]
+            y_shifted = apex_points[:, 1] - apex_point[1]
+
+            # Fit a 2nd order polynomial to the shifted points
+            coeffs = np.polyfit(x_shifted, y_shifted, 2)
+
+            a = coeffs[0]
+
+            if abs(a) > 1e-6:
+                apex_radius = 1 / abs(2*a)
+            else:
+                apex_radius = float('inf')
 
             # Visualize fit
-            cv2.ellipse(imgcrop_color, arc, (255, 0, 255), 2)
+            x_fit = np.linspace(x_shifted.min(), x_shifted.max(), 100)
+            y_fit = np.polyval(coeffs, x_fit)
 
+            # Shift fitted points back
+            x_fit_img = x_fit + apex_point[0]
+            y_fit_img = y_fit + apex_point[1]
+
+            fit_points = np.vstack((x_fit_img, y_fit_img)).T.astype(np.int32)
+
+            cv2.polylines(imgcrop_color, [fit_points], isClosed=False, color=(255, 0, 255), thickness=2)
+
+            # Visualize apex point
             cv2.circle(imgcrop_color, tuple(np.int32(apex_point)), 5, (255, 255, 0), -1)
 
+            # Visualize points used for fitting
             cv2.rectangle(imgcrop_color,
-                          (int(apex_point[0] - measure_window_half), int(apex_point[1] - 50)),
-                          (int(apex_point[0] + measure_window_half), int(apex_point[1])), (0, 255, 255), 1)
+                          (int(apex_point[0] - measure_window_half), int(apex_point[1] - vertical_window)),
+                          (int(apex_point[0] + measure_window_half), int(apex_point[1] + vertical_window)), (0, 255, 255), 1)
 
     results = {
         'cropped_image': imgcrop,

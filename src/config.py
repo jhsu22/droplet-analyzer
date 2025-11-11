@@ -308,7 +308,13 @@ SERIAL CONNECTION
 Connect to Arduino or other serial devices for hardware integration:
 - Select the COM port that the device is connected to
 - Set the appropriate baud rate
-- Send commands via the command box
+- Send commands via the command box. The command should be sent as the command followed by a space and the value.
+
+AVAILABLE COMMANDS 
+DISPENSE (positive volume in mL): dispenses a certain volume of liquid from the dispenser
+MOVE (integer value): moves the frame a certain number of steps. positive is up, negative is down
+LED (0-100): controls LED brightness
+STATUS: checks serial status
 
 Version: 0.4.0
 """

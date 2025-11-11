@@ -125,7 +125,7 @@ void dispense(double vol) {
     steps = int(revolutions * 200);
 
     syringeMotor->step(steps, FORWARD, SINGLE);
-    syringMotor->release();
+    syringeMotor->release();
 
   } else {
 
