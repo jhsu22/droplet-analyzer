@@ -21,13 +21,13 @@ class UIConfig:
     FONT_SIZE_TITLE = 14
 
     # Colors
-    COLOR_BG_PRIMARY = '#1e1e2e'
-    COLOR_BG_SECONDARY = '#181825'
-    COLOR_BORDER = '#45475a'
-    COLOR_TEXT_PRIMARY = '#cdd6f4'
-    COLOR_TEXT_ACCENT = '#cba6f7'
-    COLOR_STATUS_CONNECTED = '#63cf65'
-    COLOR_STATUS_DISCONNECTED = '#e64c4c'
+    COLOR_BG_PRIMARY = "#1e1e2e"
+    COLOR_BG_SECONDARY = "#181825"
+    COLOR_BORDER = "#45475a"
+    COLOR_TEXT_PRIMARY = "#cdd6f4"
+    COLOR_TEXT_ACCENT = "#cba6f7"
+    COLOR_STATUS_CONNECTED = "#63cf65"
+    COLOR_STATUS_DISCONNECTED = "#e64c4c"
 
     # Layout settings
     PADDING_SMALL = 5
@@ -61,10 +61,10 @@ class ProcessingConfig:
 
     # Default crop parameters (for 1920x1080 video)
     DEFAULT_CROP = {
-        'initial_x_crop': 445,
-        'initial_y_crop': 88,
-        'x_max': 1160,
-        'y_max': 932
+        "initial_x_crop": 445,
+        "initial_y_crop": 88,
+        "x_max": 1160,
+        "y_max": 932,
     }
 
     # Default Canny edge detection parameters
@@ -101,11 +101,12 @@ class ProcessingConfig:
 
 class CurrentProcessingConfig:
     """Holds the current, live values for image processing parameters."""
+
     def __init__(self):
-        self.x_start = ProcessingConfig.DEFAULT_CROP['initial_x_crop']
-        self.y_start = ProcessingConfig.DEFAULT_CROP['initial_y_crop']
-        self.x_end = ProcessingConfig.DEFAULT_CROP['x_max']
-        self.y_end = ProcessingConfig.DEFAULT_CROP['y_max']
+        self.x_start = ProcessingConfig.DEFAULT_CROP["initial_x_crop"]
+        self.y_start = ProcessingConfig.DEFAULT_CROP["initial_y_crop"]
+        self.x_end = ProcessingConfig.DEFAULT_CROP["x_max"]
+        self.y_end = ProcessingConfig.DEFAULT_CROP["y_max"]
         self.filter_size = ProcessingConfig.DEFAULT_FILTER_SIZE
         self.canny_low = ProcessingConfig.DEFAULT_CANNY_LOW
         self.canny_high = ProcessingConfig.DEFAULT_CANNY_HIGH
@@ -115,6 +116,7 @@ class CurrentProcessingConfig:
         self.clahe_enabled = ProcessingConfig.CONTRAST_ENHANCEMENT_ENABLED
         self.clahe_clip_limit = ProcessingConfig.CLAHE_CLIP_LIMIT
         self.clahe_tile_grid_size = ProcessingConfig.CLAHE_TILE_GRID_SIZE
+
 
 # Create a single, importable instance of the live config
 processing_config = CurrentProcessingConfig()
@@ -196,6 +198,20 @@ class SerialConfig:
     OUTPUT_PLACEHOLDER = "No output yet"
 
 
+class CurrentSerialConfig:
+    """Current serial communication configuration"""
+
+    def __init__(self):
+        self.port = SerialConfig.DEFAULT_PORT
+        self.baud_rate = SerialConfig.DEFAULT_BAUD_RATE
+        self.timeout = SerialConfig.TIMEOUT
+        self.status = "disconnected"
+        self.device_name = SerialConfig.DEFAULT_DEVICE_NAME
+
+
+serial_config = CurrentSerialConfig()
+
+
 class PathConfig:
     """Path configuration for file operations"""
 
@@ -239,9 +255,9 @@ class PlotConfig:
     FIGURE_DPI = 300
 
     # Plot settings
-    COLORMAP = 'gray'
-    EDGE_POINT_COLOR = 'blue'
-    EDGE_POINT_MARKER = '.'
+    COLORMAP = "gray"
+    EDGE_POINT_COLOR = "blue"
+    EDGE_POINT_MARKER = "."
     EDGE_POINT_SIZE = 2
     EDGE_POINT_ALPHA = 0.6
 
@@ -310,7 +326,7 @@ Connect to Arduino or other serial devices for hardware integration:
 - Set the appropriate baud rate
 - Send commands via the command box. The command should be sent as the command followed by a space and the value.
 
-AVAILABLE COMMANDS 
+AVAILABLE COMMANDS
 DISPENSE (positive volume in mL): dispenses a certain volume of liquid from the dispenser
 MOVE (integer value): moves the frame a certain number of steps. positive is up, negative is down
 LED (0-100): controls LED brightness
@@ -339,14 +355,14 @@ class AppConfig:
 def get_all_configs():
     """Returns all configuration classes as a dictionary"""
     return {
-        'ui': UIConfig,
-        'processing': ProcessingConfig,
-        'sliders': SliderConfig,
-        'serial': SerialConfig,
-        'paths': PathConfig,
-        'plots': PlotConfig,
-        'popups': PopupConfig,
-        'app': AppConfig
+        "ui": UIConfig,
+        "processing": ProcessingConfig,
+        "sliders": SliderConfig,
+        "serial": SerialConfig,
+        "paths": PathConfig,
+        "plots": PlotConfig,
+        "popups": PopupConfig,
+        "app": AppConfig,
     }
 
 
@@ -354,76 +370,76 @@ def get_all_configs():
 def get_slider_params():
     """Returns dictionary of slider parameters for UI creation"""
     return {
-        'x_start': {
-            'from_': SliderConfig.X_MIN,
-            'to': SliderConfig.X_MAX,
-            'number_of_steps': SliderConfig.X_STEPS,
-            'default': ProcessingConfig.DEFAULT_CROP['initial_x_crop']
+        "x_start": {
+            "from_": SliderConfig.X_MIN,
+            "to": SliderConfig.X_MAX,
+            "number_of_steps": SliderConfig.X_STEPS,
+            "default": ProcessingConfig.DEFAULT_CROP["initial_x_crop"],
         },
-        'y_start': {
-            'from_': SliderConfig.Y_MIN,
-            'to': SliderConfig.Y_MAX,
-            'number_of_steps': SliderConfig.Y_STEPS,
-            'default': ProcessingConfig.DEFAULT_CROP['initial_y_crop']
+        "y_start": {
+            "from_": SliderConfig.Y_MIN,
+            "to": SliderConfig.Y_MAX,
+            "number_of_steps": SliderConfig.Y_STEPS,
+            "default": ProcessingConfig.DEFAULT_CROP["initial_y_crop"],
         },
-        'x_end': {
-            'from_': SliderConfig.X_MIN,
-            'to': SliderConfig.X_MAX,
-            'number_of_steps': SliderConfig.X_STEPS,
-            'default': ProcessingConfig.DEFAULT_CROP['x_max']
+        "x_end": {
+            "from_": SliderConfig.X_MIN,
+            "to": SliderConfig.X_MAX,
+            "number_of_steps": SliderConfig.X_STEPS,
+            "default": ProcessingConfig.DEFAULT_CROP["x_max"],
         },
-        'y_end': {
-            'from_': SliderConfig.Y_MIN,
-            'to': SliderConfig.Y_MAX,
-            'number_of_steps': SliderConfig.Y_STEPS,
-            'default': ProcessingConfig.DEFAULT_CROP['y_max']
+        "y_end": {
+            "from_": SliderConfig.Y_MIN,
+            "to": SliderConfig.Y_MAX,
+            "number_of_steps": SliderConfig.Y_STEPS,
+            "default": ProcessingConfig.DEFAULT_CROP["y_max"],
         },
-        'filter_size': {
-            'from_': SliderConfig.FILTER_MIN,
-            'to': SliderConfig.FILTER_MAX,
-            'number_of_steps': SliderConfig.FILTER_STEPS,
-            'default': (ProcessingConfig.DEFAULT_FILTER_SIZE - 1) // 2
+        "filter_size": {
+            "from_": SliderConfig.FILTER_MIN,
+            "to": SliderConfig.FILTER_MAX,
+            "number_of_steps": SliderConfig.FILTER_STEPS,
+            "default": (ProcessingConfig.DEFAULT_FILTER_SIZE - 1) // 2,
         },
-        'canny_low': {
-            'from_': SliderConfig.CANNY_MIN,
-            'to': SliderConfig.CANNY_MAX,
-            'number_of_steps': SliderConfig.CANNY_STEPS,
-            'default': ProcessingConfig.DEFAULT_CANNY_LOW
+        "canny_low": {
+            "from_": SliderConfig.CANNY_MIN,
+            "to": SliderConfig.CANNY_MAX,
+            "number_of_steps": SliderConfig.CANNY_STEPS,
+            "default": ProcessingConfig.DEFAULT_CANNY_LOW,
         },
-        'canny_high': {
-            'from_': SliderConfig.CANNY_MIN,
-            'to': SliderConfig.CANNY_MAX,
-            'number_of_steps': SliderConfig.CANNY_STEPS,
-            'default': ProcessingConfig.DEFAULT_CANNY_HIGH
+        "canny_high": {
+            "from_": SliderConfig.CANNY_MIN,
+            "to": SliderConfig.CANNY_MAX,
+            "number_of_steps": SliderConfig.CANNY_STEPS,
+            "default": ProcessingConfig.DEFAULT_CANNY_HIGH,
         },
-        'min_object_size': {
-            'from_': SliderConfig.MIN_OBJ_MIN,
-            'to': SliderConfig.MIN_OBJ_MAX,
-            'number_of_steps': SliderConfig.MIN_OBJ_STEPS,
-            'default': ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE
+        "min_object_size": {
+            "from_": SliderConfig.MIN_OBJ_MIN,
+            "to": SliderConfig.MIN_OBJ_MAX,
+            "number_of_steps": SliderConfig.MIN_OBJ_STEPS,
+            "default": ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE,
         },
-        'min_size_mult': {
-            'from_': SliderConfig.MIN_MULT_MIN,
-            'to': SliderConfig.MIN_MULT_MAX,
-            'number_of_steps': SliderConfig.MIN_MULT_STEPS,
-            'default': ProcessingConfig.DEFAULT_MIN_SIZE_MULT
+        "min_size_mult": {
+            "from_": SliderConfig.MIN_MULT_MIN,
+            "to": SliderConfig.MIN_MULT_MAX,
+            "number_of_steps": SliderConfig.MIN_MULT_STEPS,
+            "default": ProcessingConfig.DEFAULT_MIN_SIZE_MULT,
         },
-        'sigma': {
-            'from_': SliderConfig.SIGMA_MIN,
-            'to': SliderConfig.SIGMA_MAX,
-            'number_of_steps': SliderConfig.SIGMA_STEPS,
-            'default': ProcessingConfig.DEFAULT_SIGMA
+        "sigma": {
+            "from_": SliderConfig.SIGMA_MIN,
+            "to": SliderConfig.SIGMA_MAX,
+            "number_of_steps": SliderConfig.SIGMA_STEPS,
+            "default": ProcessingConfig.DEFAULT_SIGMA,
         },
         "clahe_clip_limit": {
-            'from_': SliderConfig.CLAHE_CLIP_MIN,
-            'to': SliderConfig.CLAHE_CLIP_MAX,
-            'number_of_steps': SliderConfig.CLAHE_CLIP_STEPS,
-            'default': ProcessingConfig.CLAHE_CLIP_LIMIT
+            "from_": SliderConfig.CLAHE_CLIP_MIN,
+            "to": SliderConfig.CLAHE_CLIP_MAX,
+            "number_of_steps": SliderConfig.CLAHE_CLIP_STEPS,
+            "default": ProcessingConfig.CLAHE_CLIP_LIMIT,
         },
         "clahe_tile_grid_size": {
-            'from_': SliderConfig.CLAHE_SIZE_MIN,
-            'to': SliderConfig.CLAHE_SIZE_MAX,
-            'number_of_steps': SliderConfig.CLAHE_SIZE_STEPS,
-            'default': ProcessingConfig.CLAHE_TILE_GRID_SIZE
-        }
+            "from_": SliderConfig.CLAHE_SIZE_MIN,
+            "to": SliderConfig.CLAHE_SIZE_MAX,
+            "number_of_steps": SliderConfig.CLAHE_SIZE_STEPS,
+            "default": ProcessingConfig.CLAHE_TILE_GRID_SIZE,
+        },
     }
