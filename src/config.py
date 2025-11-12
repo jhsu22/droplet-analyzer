@@ -203,6 +203,8 @@ class CurrentSerialConfig:
 
     def __init__(self):
         self.port = SerialConfig.DEFAULT_PORT
+        self.ports = SerialConfig.DEFAULT_PORTS
+        self.descriptions = []
         self.baud_rate = SerialConfig.DEFAULT_BAUD_RATE
         self.timeout = SerialConfig.TIMEOUT
         self.status = "disconnected"

@@ -545,7 +545,7 @@ class UIFrame(ctk.CTkFrame):
         )
         self.port_entry = ctk.CTkComboBox(
             serial_inner,
-            values=ports,
+            values=serial_config.ports,
             font=self.master.custom_font,
         )
         self.port_entry.set(SerialConfig.DEFAULT_PORT)
@@ -627,7 +627,7 @@ class UIFrame(ctk.CTkFrame):
             serial_inner,
             text="Send",
             font=self.master.custom_font,
-            command=self.master.send_command,
+            command=self.master.send_serial_command,
         )
         self.send_button.grid(
             row=6,

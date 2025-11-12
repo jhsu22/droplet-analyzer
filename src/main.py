@@ -14,10 +14,17 @@ if sys.platform != "darwin":
 import cv2
 from PIL import Image
 
-from config import PathConfig, PopupConfig, SerialConfig, UIConfig, processing_config
+from config import (
+    PathConfig,
+    PopupConfig,
+    SerialConfig,
+    UIConfig,
+    processing_config,
+    serial_config,
+)
 from image_processing import calibrate, crop_image, process_frame_edge
 from popup_windows import CalibrationPopup
-from serial_manager import SerialManager
+from serial_manager import SerialManager, list_ports
 from ui_builder import UIFrame
 
 
@@ -71,6 +78,7 @@ class App(ctk.CTk):
         self._set_output_paths()
         self._load_theme()
         self._load_fonts()
+        self._load_ports()
         self._configure_window()
         self._create_ui()
 
@@ -167,6 +175,13 @@ class App(ctk.CTk):
             dark_image=image_resized,
             size=(new_width, new_height),
         )
+
+    def _load_ports(self):
+        # Load available serial ports
+        ports, descriptions = list_ports()
+
+        serial_config.ports = ports
+        serial_config.descriptions = descriptions
 
     def load_video(self, video_path):
         # Load video, update UI controls, and show first frame
@@ -436,6 +451,9 @@ class App(ctk.CTk):
         if self.serial_manager.is_running:
             self.frame.connection_status.configure(text=SerialConfig.STATUS_CONNECTED)
             self.frame.connection_status.configure(fg=UIConfig.COLOR_STATUS_CONNECTED)
+
+            self.check_serial_queue()
+
         else:
             self.frame.connection_status.configure(text="Connection Failed")
             self.frame.connection_status.configure(

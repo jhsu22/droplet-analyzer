@@ -112,7 +112,13 @@ class SerialManager:
 
 
 def list_ports():
-    ports = serial.tools.list_ports.comports()
+    found_ports = serial.tools.list_ports.comports()
 
-    for port in ports:
-        return (port.device, port.description)
+    ports = []
+    descriptions = []
+
+    for port in found_ports:
+        ports.append(port.device)
+        descriptions.append(port.description)
+
+    return (ports, descriptions)
