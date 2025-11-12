@@ -508,7 +508,7 @@ class UIFrame(ctk.CTkFrame):
         # Connected device
         self.connected_label = ctk.CTkLabel(
             serial_inner,
-            text=f"Connected Device: {SerialConfig.DEFAULT_DEVICE_NAME}",
+            text=f"Connected Device: {serial_config.device_name}",
             font=self.master.custom_font_bold,
             text_color=UIConfig.COLOR_TEXT_ACCENT,
         )
@@ -535,19 +535,6 @@ class UIFrame(ctk.CTkFrame):
             sticky="w",
         )
 
-        status = serial_config.status
-
-        if status == "connected":
-            self.connection_status.configure(
-                text=SerialConfig.STATUS_CONNECTED,
-                text_color=UIConfig.COLOR_STATUS_CONNECTED,
-            )
-        elif status == "disconnected":
-            self.connection_status.configure(
-                text=SerialConfig.STATUS_DISCONNECTED,
-                text_color=UIConfig.COLOR_STATUS_DISCONNECTED,
-            )
-
         # Port selection
         ctk.CTkLabel(serial_inner, text="Port:", font=self.master.custom_font).grid(
             row=1,
@@ -558,7 +545,7 @@ class UIFrame(ctk.CTkFrame):
         )
         self.port_entry = ctk.CTkComboBox(
             serial_inner,
-            values=SerialConfig.DEFAULT_PORTS,
+            values=ports,
             font=self.master.custom_font,
         )
         self.port_entry.set(SerialConfig.DEFAULT_PORT)
@@ -592,6 +579,21 @@ class UIFrame(ctk.CTkFrame):
             pady=UIConfig.PADDING_MEDIUM,
         )
 
+        # Connect button
+        self.connect_button = ctk.CTkButton(
+            serial_inner,
+            text="Connect",
+            font=self.master.custom_font,
+            command=self.master.connect_serial,
+        )
+        self.connect_button.grid(
+            row=3,
+            column=0,
+            sticky="ew",
+            padx=(UIConfig.PADDING_MEDIUM, 0),
+            pady=UIConfig.PADDING_MEDIUM,
+        )
+
         # Command send
         self.send_command = ctk.CTkLabel(
             serial_inner,
@@ -600,7 +602,7 @@ class UIFrame(ctk.CTkFrame):
             text_color=UIConfig.COLOR_TEXT_ACCENT,
         )
         self.send_command.grid(
-            row=3,
+            row=4,
             column=0,
             pady=(20, UIConfig.PADDING_MEDIUM),
             padx=UIConfig.PADDING_MEDIUM,
@@ -613,7 +615,7 @@ class UIFrame(ctk.CTkFrame):
             font=self.master.custom_font,
         )
         self.command_box.grid(
-            row=4,
+            row=5,
             column=0,
             columnspan=2,
             pady=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM),
@@ -622,10 +624,13 @@ class UIFrame(ctk.CTkFrame):
         )
 
         self.send_button = ctk.CTkButton(
-            serial_inner, text="Send", font=self.master.custom_font
+            serial_inner,
+            text="Send",
+            font=self.master.custom_font,
+            command=self.master.send_command,
         )
         self.send_button.grid(
-            row=5,
+            row=6,
             column=0,
             pady=(UIConfig.PADDING_SMALL, UIConfig.PADDING_MEDIUM),
             padx=UIConfig.PADDING_MEDIUM,
@@ -640,7 +645,7 @@ class UIFrame(ctk.CTkFrame):
             text_color=UIConfig.COLOR_TEXT_ACCENT,
         )
         self.output_label.grid(
-            row=6,
+            row=7,
             column=0,
             pady=(20, UIConfig.PADDING_MEDIUM),
             padx=UIConfig.PADDING_MEDIUM,
@@ -654,7 +659,7 @@ class UIFrame(ctk.CTkFrame):
         self.output_box.insert("0.0", SerialConfig.OUTPUT_PLACEHOLDER)
         self.output_box.configure(state="disabled")
         self.output_box.grid(
-            row=7,
+            row=8,
             column=0,
             columnspan=2,
             pady=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM),

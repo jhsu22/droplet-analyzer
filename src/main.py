@@ -2,20 +2,24 @@
 Pendant Droplet Analyzer - Main Application
 """
 
-import sys
 import os
+import sys
+
 import customtkinter as ctk
+from serial.serialposix import Serial
 
 if sys.platform != "darwin":
     from tkextrafont import Font
 
-from ui_builder import UIFrame
-from config import UIConfig, PathConfig, processing_config, PopupConfig
-from image_processing import crop_image, calibrate, process_frame_edge
-from popup_windows import CalibrationPopup
-
 import cv2
 from PIL import Image
+
+from config import PathConfig, PopupConfig, SerialConfig, UIConfig, processing_config
+from image_processing import calibrate, crop_image, process_frame_edge
+from popup_windows import CalibrationPopup
+from serial_manager import SerialManager
+from ui_builder import UIFrame
+
 
 def resource_path(relative_path):
     # Get absolute path to resource, works for dev and for PyInstaller
@@ -27,8 +31,10 @@ def resource_path(relative_path):
 
     return base_path / relative_path
 
+
 class TextboxRedirector:
     """Redirects stdout to a CTkTextbox widget"""
+
     def __init__(self, textbox_widget):
         self.textbox = textbox_widget
 
@@ -44,10 +50,12 @@ class TextboxRedirector:
     def flush(self):
         pass
 
-class App(ctk.CTk):
 
+class App(ctk.CTk):
     def __init__(self):
         super().__init__()
+
+        self.serial_manager = None
 
         self.is_drawing_frame = False
 
@@ -104,19 +112,20 @@ class App(ctk.CTk):
                 Font(file=self.FONT_PATH, family=UIConfig.FONT_FAMILY)
 
             self.custom_font = ctk.CTkFont(
-                family=UIConfig.FONT_FAMILY,
-                size=UIConfig.FONT_SIZE_NORMAL
+                family=UIConfig.FONT_FAMILY, size=UIConfig.FONT_SIZE_NORMAL
             )
             self.custom_font_bold = ctk.CTkFont(
                 family=UIConfig.FONT_FAMILY,
                 size=UIConfig.FONT_SIZE_NORMAL,
-                weight="bold"
+                weight="bold",
             )
         except Exception as e:
             print(f"Warning: Could not load custom font: {e}")
             # Fallback to system font
             self.custom_font = ctk.CTkFont(size=UIConfig.FONT_SIZE_NORMAL)
-            self.custom_font_bold = ctk.CTkFont(size=UIConfig.FONT_SIZE_NORMAL, weight="bold")
+            self.custom_font_bold = ctk.CTkFont(
+                size=UIConfig.FONT_SIZE_NORMAL, weight="bold"
+            )
 
     def _configure_window(self):
         # Configure main window properties
@@ -130,7 +139,9 @@ class App(ctk.CTk):
         self.frame = UIFrame(master=self)
         self.frame.grid(row=0, column=0, sticky="nsew")
 
-        self.frame.image_panel.bind("<Configure>", lambda e: self.frame.image_label.configure)
+        self.frame.image_panel.bind(
+            "<Configure>", lambda e: self.frame.image_label.configure
+        )
 
     def _create_ctk_image(self, np_array, panel_width, panel_height):
         # Convert a np array to a CTkImage and fit it to a panel
@@ -151,9 +162,11 @@ class App(ctk.CTk):
 
         image_resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-        return ctk.CTkImage(light_image=image_resized, dark_image=image_resized, size=(new_width, new_height))
-
-
+        return ctk.CTkImage(
+            light_image=image_resized,
+            dark_image=image_resized,
+            size=(new_width, new_height),
+        )
 
     def load_video(self, video_path):
         # Load video, update UI controls, and show first frame
@@ -170,7 +183,9 @@ class App(ctk.CTk):
         self.num_frames = self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT)
 
         # Configure slider
-        self.frame.video_slider.configure(to=self.num_frames - 1, number_of_steps=self.num_frames - 1)
+        self.frame.video_slider.configure(
+            to=self.num_frames - 1, number_of_steps=self.num_frames - 1
+        )
         self.frame.video_slider.configure(state="normal")
 
         # Update button states
@@ -205,7 +220,9 @@ class App(ctk.CTk):
                 # Convert and crop image
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                cropped_frame = crop_image(frame=rgb_frame, crop_params=processing_config)
+                cropped_frame = crop_image(
+                    frame=rgb_frame, crop_params=processing_config
+                )
 
                 image = Image.fromarray(cropped_frame)
 
@@ -226,10 +243,16 @@ class App(ctk.CTk):
                         new_width = int(new_height * image_aspect)
 
                 # Resize the image
-                image_resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                image_resized = image.resize(
+                    (new_width, new_height), Image.Resampling.LANCZOS
+                )
 
                 # Create CTkImage
-                ctk_image = ctk.CTkImage(light_image=image_resized, dark_image=image_resized, size=(new_width, new_height))
+                ctk_image = ctk.CTkImage(
+                    light_image=image_resized,
+                    dark_image=image_resized,
+                    size=(new_width, new_height),
+                )
 
                 # Update the label
                 self.frame.image_label.configure(image=ctk_image, text="")
@@ -237,9 +260,11 @@ class App(ctk.CTk):
 
                 # Update slider and its label
                 self.frame.video_slider.set(frame_num)
-                self.frame.frame_number_label.configure(text=f"Frame {frame_num}/{int(self.num_frames - 1)}")
+                self.frame.frame_number_label.configure(
+                    text=f"Frame {frame_num}/{int(self.num_frames - 1)}"
+                )
 
-            else: # Video ended
+            else:  # Video ended
                 self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset
 
         finally:
@@ -264,7 +289,6 @@ class App(ctk.CTk):
             return None
 
     def _on_image_panel_configure(self, event):
-
         current_frame = int(self.frame.video_slider.get())
 
         self.show_frame(current_frame)
@@ -273,31 +297,43 @@ class App(ctk.CTk):
         current_frame = int(self.frame.video_slider.get())
         print(f"Starting calibration on frame {current_frame}")
 
-        calibration_results = calibrate(starting_frame=current_frame, crop_params=processing_config, video=self.video_capture,
-                                       OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH, OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH)
+        calibration_results = calibrate(
+            starting_frame=current_frame,
+            crop_params=processing_config,
+            video=self.video_capture,
+            OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH,
+            OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH,
+        )
 
         final_image_np = calibration_results.get("cropped_image_color")
 
         if final_image_np is not None:
-
             final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
 
             panel_width = self.frame.image_panel.winfo_width()
             panel_height = self.frame.image_panel.winfo_height()
 
-            ctk_image = self._create_ctk_image(final_image_rgb, panel_width, panel_height)
+            ctk_image = self._create_ctk_image(
+                final_image_rgb, panel_width, panel_height
+            )
 
             if ctk_image:
                 self.frame.image_label.configure(image=ctk_image, text="")
                 self.frame.image_label.image = ctk_image
 
-        panel_width = (PopupConfig.DEBUG_POPUP_WIDTH // 3)
+        panel_width = PopupConfig.DEBUG_POPUP_WIDTH // 3
         panel_height = PopupConfig.DEBUG_POPUP_HEIGHT - 150
 
         images_for_popup = {
-            "median": self._create_ctk_image(calibration_results.get("filtered_image"), panel_width, panel_height),
-            "gaussian": self._create_ctk_image(calibration_results.get("gaussian_image"), panel_width, panel_height),
-            "final": self._create_ctk_image(calibration_results.get("binary_edge_image"), panel_width, panel_height)
+            "median": self._create_ctk_image(
+                calibration_results.get("filtered_image"), panel_width, panel_height
+            ),
+            "gaussian": self._create_ctk_image(
+                calibration_results.get("gaussian_image"), panel_width, panel_height
+            ),
+            "final": self._create_ctk_image(
+                calibration_results.get("binary_edge_image"), panel_width, panel_height
+            ),
         }
 
         CalibrationPopup(self, images=images_for_popup)
@@ -342,15 +378,17 @@ class App(ctk.CTk):
                     canny_high=processing_config.canny_high,
                     min_object_size=processing_config.min_object_size,
                     sigma=processing_config.sigma,
-                    adaptive_threshold=True
+                    adaptive_threshold=True,
                 )
 
-                radius = frame_results.get('apex_radius')
-                self.analysis_results.append({
-                    'frame_number': current_frame,
-                    'apex_radius': radius,
-                    'num_edge_points': frame_results.get('num_edge_points')
-                })
+                radius = frame_results.get("apex_radius")
+                self.analysis_results.append(
+                    {
+                        "frame_number": current_frame,
+                        "apex_radius": radius,
+                        "num_edge_points": frame_results.get("num_edge_points"),
+                    }
+                )
                 if current_frame % 50 == 0:
                     if radius is not None:
                         print(f"Frame {current_frame}: Apex Radius = {radius:.2f}")
@@ -365,7 +403,9 @@ class App(ctk.CTk):
                     panel_width = self.frame.image_panel.winfo_width()
                     panel_height = self.frame.image_panel.winfo_height()
 
-                    ctk_image = self._create_ctk_image(final_image_rgb, panel_width, panel_height)
+                    ctk_image = self._create_ctk_image(
+                        final_image_rgb, panel_width, panel_height
+                    )
 
                     if ctk_image:
                         self.frame.image_label.configure(image=ctk_image, text="")
@@ -373,13 +413,60 @@ class App(ctk.CTk):
 
             next_frame = current_frame + 1
             self.frame.video_slider.set(next_frame)
-            self.frame.frame_number_label.configure(text=f"Frame {next_frame}/{int(self.num_frames - 1)}")
+            self.frame.frame_number_label.configure(
+                text=f"Frame {next_frame}/{int(self.num_frames - 1)}"
+            )
 
             self.after(15, self.update_video)
         else:
             print("Analysis complete.")
             print(f"Processsed {len(self.analysis_results)} frames.")
             self.is_playing = False
+
+    def connect_serial(self):
+        # Get port and baud rate from UI widgets
+        port = self.frame.port_entry.get()
+        baud = int(self.frame.baud_combo.get())
+
+        # Create a SerialManager instance
+        self.serial_manager = SerialManager(port, baud)
+
+        self.serial_manager.connect()
+
+        if self.serial_manager.is_running:
+            self.frame.connection_status.configure(text=SerialConfig.STATUS_CONNECTED)
+            self.frame.connection_status.configure(fg=UIConfig.COLOR_STATUS_CONNECTED)
+        else:
+            self.frame.connection_status.configure(text="Connection Failed")
+            self.frame.connection_status.configure(
+                fg=UIConfig.COLOR_STATUS_DISCONNECTED
+            )
+
+    def send_serial_command(self):
+        # Get command from UI widget
+        command = self.frame.command_box.get()
+
+        if self.serial_manager and command:
+            # Send command to serial port
+            self.serial_manager.send_command(command)
+
+            # Clear entry box
+            self.frame.command_box.delete(0, "end")
+
+    def check_serial_queue(self):
+        try:
+            message = self.serial_manager.read_line(timeout=0.1)
+
+            if message:
+                # Add the message to the output box
+                self.frame.output_box.configure(state="normal")
+                self.frame.output_box.insert("end", message + "\n")
+                self.frame.output_box.configure(state="disabled")
+
+        # Loop every 100ms
+        finally:
+            self.after(100, self.check_serial_queue)
+
 
 def main():
     app = App()

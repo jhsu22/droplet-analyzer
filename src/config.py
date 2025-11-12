@@ -177,7 +177,7 @@ class SerialConfig:
     """Serial communication configuration"""
 
     # Default device name
-    DEFAULT_DEVICE_NAME = "Arduino UNO R3"
+    DEFAULT_DEVICE_NAME = "None"
 
     # Available COM ports (Windows)
     DEFAULT_PORTS = ["COM1", "COM2", "COM3", "COM4", "COM5", "COM6"]

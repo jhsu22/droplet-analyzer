@@ -6,7 +6,7 @@
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 
 // Create stepper motor objects
-Adafruit_StepperMotor *syringeStepper = AFMS.getStepper(200,1);
+Adafruit_StepperMotor *syringeStepper = AFMS.getStepper(200, 1);
 Adafruit_StepperMotor *frameStepper = AFMS.getStepper(200, 2);
 
 // Define arduino pins
@@ -24,10 +24,10 @@ double disp;               // required plunger displacement
 double revolutions;        // required revolutions
 double steps;              // required steps
 
-int ledBrightness = 0;     // Global variable for current LED brightness
+String inputString = "";   // A String to hold incoming data
+bool manualLedControl = false; // Flag to override potentiometer
 
 void setup() {
-
   Serial.begin(9600);
   while (!Serial);
 
@@ -35,74 +35,68 @@ void setup() {
   AFMS.begin();
 
   // LED and potentiometer setup
-  pinMode(LED, OUTPUT);
-  pinMode(POT, INPUT);
+  pinMode(ledPin, OUTPUT);
+  pinMode(potPin, INPUT);
 
   syringeStepper->setSpeed(15);  // stepper motor speed [rpm]
   frameStepper->setSpeed(15);
 
-  // Start with LED off
-  led(0);
+  // Start with LED off, but in automatic (potentiometer) mode
+  analogWrite(ledPin, 0);
 
   // Reserve memory for input string
   inputString.reserve(50);
-
 }
 
 void loop() {
-
   // Check if serial data is available
   while (Serial.available()) {
-
-    // Read the next character
     char inputChar = Serial.read();
-
-    // If character is not '\n', append it to the string
     if (inputChar != '\n') {
-
       inputString += inputChar;
-
     } else {
-
       processCommand(inputString);
-
       inputString = "";
     }
   }
+
+  // If not in manual mode, control LED with potentiometer
+  if (!manualLedControl) {
+    int potValue = analogRead(potPin);
+    int brightnessPWM = map(potValue, 0, 1023, 0, 255);
+    analogWrite(ledPin, brightnessPWM);
+  }
 }
 
-// Comand processing function
-
+// Command processing function
 void processCommand(String command) {
-
-  // Remove and whitespace
   command.trim();
-
-  // Convert command to uppercase
   command.toUpperCase();
 
-  // Separate command from value
   int spaceIndex = command.indexOf(' ');
-
   String cmdKey;
-  int cmdValue = -1;
+  String valueString = "";
 
   if (spaceIndex > 0) {
     cmdKey = command.substring(0, spaceIndex);
-    String valueString = command.substring(spaceIndex + 1);
-
-    cmdValue = valueString.toInt();
+    valueString = command.substring(spaceIndex + 1);
   } else {
     cmdKey = command;
   }
 
   // Route command to right function
   if (cmdKey == "LED") {
-    led(cmdValue);
+    if (valueString != "") {
+      led(valueString.toInt());
+    } else {
+      // If "LED" is sent without a value, switch back to potentiometer control
+      manualLedControl = false;
+      Serial.println("LED control switched to potentiometer.");
+    }
   } else if (cmdKey == "DISPENSE") {
-    dispense(cmdValue);
+    dispense(valueString.toFloat());
   } else if (cmdKey == "MOVE") {
-    move_frame(cmdValue);
+    move_frame(valueString.toInt());
   } else if (cmdKey == "STATUS") {
     Serial.println("System OK.");
   } else {
@@ -112,62 +106,44 @@ void processCommand(String command) {
 }
 
 // Control functions
-
 void dispense(double vol) {
-// Takes a desired droplet volume and dispenses it
-
-  if vol > 0 {
-
+  if (vol > 0) {
     disp = syrHeight - (vol * syrRatio);
-
     revolutions = disp / leadPitch;
-
     steps = int(revolutions * 200);
 
-    syringeMotor->step(steps, FORWARD, SINGLE);
-    syringeMotor->release();
-
+    syringeStepper->step(steps, FORWARD, SINGLE);
+    syringeStepper->release();
   } else {
-
     Serial.println("Please enter a positive volume.");
-
   }
-
 }
 
 void move_frame(int steps) {
-// Move the frame a certain amount up or down
-
   if (steps > 0) {
-    frameMotor->step(steps, FORWARD, SINGLE);
-
+    frameStepper->step(steps, FORWARD, SINGLE);
     Serial.print("Moved the frame ");
     Serial.print(steps);
     Serial.println(" steps up.");
   } else {
-    frameMotor->step(abs(steps), BACKWARD, SINGLE);
-
+    frameStepper->step(abs(steps), BACKWARD, SINGLE);
     Serial.print("Moved the frame ");
-    Serial.print(steps);
+    Serial.print(abs(steps));
     Serial.println(" steps down.");
   }
-
 }
 
-void led(int brightness) {
-// Change LED brightness (override potentiometer)
+void led(int brightnessPercent) {
+  // Switch to manual control
+  manualLedControl = true;
 
-  if (brightness >= 0) {
-    // Constrain input to percent range
-    currentBrightness = constrain(brightness, 0, 100);
-
-    // Convert to PWM
-    brightnessPWM = (currentBrightness / 100) * 255
-
+  if (brightnessPercent >= 0 && brightnessPercent <= 100) {
+    int brightnessPWM = map(brightnessPercent, 0, 100, 0, 255);
     analogWrite(ledPin, brightnessPWM);
     Serial.print("LED Brightness set to: ");
-    Serial.println(currentBrightness);
+    Serial.print(brightnessPercent);
+    Serial.println("%");
   } else {
-    Serial.println("Please enter a positive brightness.");
+    Serial.println("Please enter a brightness between 0 and 100.");
   }
 }
