@@ -450,14 +450,16 @@ class App(ctk.CTk):
 
         if self.serial_manager.is_running:
             self.frame.connection_status.configure(text=SerialConfig.STATUS_CONNECTED)
-            self.frame.connection_status.configure(fg=UIConfig.COLOR_STATUS_CONNECTED)
+            self.frame.connection_status.configure(
+                text_color=UIConfig.COLOR_STATUS_CONNECTED
+            )
 
             self.check_serial_queue()
 
         else:
             self.frame.connection_status.configure(text="Connection Failed")
             self.frame.connection_status.configure(
-                fg=UIConfig.COLOR_STATUS_DISCONNECTED
+                text_color=UIConfig.COLOR_STATUS_DISCONNECTED
             )
 
     def send_serial_command(self):

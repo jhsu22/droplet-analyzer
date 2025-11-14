@@ -49,6 +49,7 @@ class UIConfig:
     PANEL_TITLE_PARAMETERS = "PARAMETERS"
     PANEL_TITLE_SERIAL = "SERIAL"
     PANEL_TITLE_OUTPUT = "OUTPUT"
+    PANEL_TITLE_FIT = "RESULTS"
 
     # Grid weights (for layout proportions)
     GRID_WEIGHT_IMAGE = 8
@@ -177,11 +178,11 @@ class SerialConfig:
     """Serial communication configuration"""
 
     # Default device name
-    DEFAULT_DEVICE_NAME = "None"
+    DEFAULT_DEVICE_NAME = "No Connected Device"
 
-    # Available COM ports (Windows)
+    # Available COM ports
     DEFAULT_PORTS = ["COM1", "COM2", "COM3", "COM4", "COM5", "COM6"]
-    DEFAULT_PORT = "COM1"
+    DEFAULT_PORT = "Select Port"
 
     # Available baud rates
     BAUD_RATES = ["9600", "19200", "38400", "57600", "115200"]

@@ -508,7 +508,7 @@ class UIFrame(ctk.CTkFrame):
         # Connected device
         self.connected_label = ctk.CTkLabel(
             serial_inner,
-            text=f"Connected Device: {serial_config.device_name}",
+            text=f"{serial_config.device_name}",
             font=self.master.custom_font_bold,
             text_color=UIConfig.COLOR_TEXT_ACCENT,
         )
@@ -604,7 +604,7 @@ class UIFrame(ctk.CTkFrame):
         self.send_command.grid(
             row=4,
             column=0,
-            pady=(20, UIConfig.PADDING_MEDIUM),
+            pady=(10, UIConfig.PADDING_MEDIUM),
             padx=UIConfig.PADDING_MEDIUM,
             sticky="w",
         )
@@ -618,7 +618,7 @@ class UIFrame(ctk.CTkFrame):
             row=5,
             column=0,
             columnspan=2,
-            pady=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM),
+            pady=(UIConfig.PADDING_SMALL, UIConfig.PADDING_MEDIUM),
             padx=UIConfig.PADDING_MEDIUM,
             sticky="ew",
         )
@@ -647,7 +647,7 @@ class UIFrame(ctk.CTkFrame):
         self.output_label.grid(
             row=7,
             column=0,
-            pady=(20, UIConfig.PADDING_MEDIUM),
+            pady=(20, UIConfig.PADDING_SMALL),
             padx=UIConfig.PADDING_MEDIUM,
             sticky="w",
         )
@@ -662,7 +662,7 @@ class UIFrame(ctk.CTkFrame):
             row=8,
             column=0,
             columnspan=2,
-            pady=(UIConfig.PADDING_MEDIUM, UIConfig.PADDING_MEDIUM),
+            pady=(0, UIConfig.PADDING_LARGE),
             padx=UIConfig.PADDING_MEDIUM,
             sticky="ew",
         )
@@ -674,11 +674,50 @@ class UIFrame(ctk.CTkFrame):
         )
         bottom_row.grid_rowconfigure(0, weight=1)
         bottom_row.grid_columnconfigure(0, weight=1)
+        bottom_row.grid_columnconfigure(1, weight=3)
+
+        # Fit panel with container
+        fit_container = ctk.CTkFrame(bottom_row, fg_color="transparent")
+        fit_container.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+            pady=(UIConfig.PADDING_SMALL, UIConfig.PADDING_LARGE),
+            padx=(0, UIConfig.PADDING_LARGE),
+        )
+
+        fit_panel = ctk.CTkFrame(
+            fit_container,
+            border_width=UIConfig.HEADER_BORDER_WIDTH,
+            border_color=UIConfig.COLOR_BORDER,
+            fg_color=UIConfig.COLOR_BG_PRIMARY,
+        )
+        fit_panel.pack(fill="both", expand=True, pady=(8, 0))
+
+        fit_title = ctk.CTkLabel(
+            fit_container,
+            text=f" {UIConfig.PANEL_TITLE_FIT} ",
+            text_color=UIConfig.COLOR_TEXT_PRIMARY,
+            font=self.master.custom_font,
+        )
+        fit_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
+
+        self.fit_text = ctk.CTkTextbox(fit_panel, fg_color=UIConfig.COLOR_BG_SECONDARY)
+        self.fit_text.pack(
+            fill="both",
+            expand=True,
+            padx=UIConfig.PADDING_MEDIUM,
+            pady=UIConfig.PADDING_MEDIUM,
+        )
+        self.fit_text.configure(state="disabled")
 
         # Output panel with container
         output_container = ctk.CTkFrame(bottom_row, fg_color="transparent")
         output_container.grid(
-            row=0, column=0, sticky="nsew", pady=UIConfig.PADDING_SMALL
+            row=0,
+            column=1,
+            sticky="nsew",
+            pady=(UIConfig.PADDING_SMALL, UIConfig.PADDING_LARGE),
         )
 
         output_panel = ctk.CTkFrame(

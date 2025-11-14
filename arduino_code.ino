@@ -1,3 +1,10 @@
+// ---------------------------------------------- //
+// Arduino code for droplet dispenser system      //
+// Two steppers wired to an Adafruit motor shield //
+// LED wired to digital pin 9                     //
+// Potentiometer wired to analog pin A0           //
+// ---------------------------------------------- //
+
 #include <Wire.h>
 #include <Adafruit_MotorShield.h>
 #include <PWMServo.h>
