@@ -4,14 +4,16 @@ Image Analysis Script
 Takes a video file and performs canny edge detection on every frame to get the edge of the droplet
 """
 
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-import skimage as ski
 import os
 
-from config import ProcessingConfig, PathConfig, PlotConfig, processing_config
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import skimage as ski
+
+from config import PathConfig, PlotConfig, ProcessingConfig, processing_config
 from popup_windows import VideoPopup
+
 
 def bwareaopen(binary_image, min_size):
     """
@@ -27,6 +29,7 @@ def bwareaopen(binary_image, min_size):
     cleaned = ski.morphology.remove_small_objects(binary_bool, min_size=min_size)
     return cleaned.astype(np.uint8) * 255
 
+
 def extract_edge_points(binary_image):
     """
     Extract edge points from a binary image
@@ -40,6 +43,7 @@ def extract_edge_points(binary_image):
     edge_points = np.column_stack((col, row))
 
     return edge_points
+
 
 def crop_image(frame, crop_params):
     """
@@ -61,15 +65,20 @@ def crop_image(frame, crop_params):
 
     return imgcrop
 
-def process_frame_edge(frame, crop_params,
-                       filter_size=processing_config.filter_size,
-                       canny_low=processing_config.canny_low,
-                       canny_high=processing_config.canny_high,
-                       min_object_size=processing_config.min_object_size,
-                       min_size_mult=processing_config.min_size_mult,
-                       sigma=processing_config.sigma,
-                       adaptive_threshold=True,
-                       calibration_radius=None):
+
+def process_frame_edge(
+    frame,
+    crop_params,
+    filter_size=processing_config.filter_size,
+    canny_low=processing_config.canny_low,
+    canny_high=processing_config.canny_high,
+    min_object_size=processing_config.min_object_size,
+    min_size_mult=processing_config.min_size_mult,
+    sigma=processing_config.sigma,
+    adaptive_threshold=True,
+    calibration_radius=None,
+    yl_fitted_points=None,
+):
     """
     Performs edge detection for a single frame
 
@@ -93,7 +102,10 @@ def process_frame_edge(frame, crop_params,
     if processing_config.clahe_enabled:
         clahe = cv2.createCLAHE(
             clipLimit=ProcessingConfig.CLAHE_CLIP_LIMIT,
-            tileGridSize=(ProcessingConfig.CLAHE_TILE_GRID_SIZE, ProcessingConfig.CLAHE_TILE_GRID_SIZE)
+            tileGridSize=(
+                ProcessingConfig.CLAHE_TILE_GRID_SIZE,
+                ProcessingConfig.CLAHE_TILE_GRID_SIZE,
+            ),
         )
         imgcrop = clahe.apply(imgcrop)
 
@@ -117,7 +129,6 @@ def process_frame_edge(frame, crop_params,
 
     # Check for good amount of edge points
     if len(edge_points) > 50:
-
         # Find the lowest point on the droplet
         apex_index = np.argmax(edge_points[:, 1])
         apex_point = edge_points[apex_index]
@@ -138,7 +149,6 @@ def process_frame_edge(frame, crop_params,
 
         # Fit a polynomial to the apex points
         if len(apex_points) > 5:
-
             # Shift points to be relative to the apex
             x_shifted = apex_points[:, 0] - apex_point[0]
             y_shifted = apex_points[:, 1] - apex_point[1]
@@ -149,9 +159,9 @@ def process_frame_edge(frame, crop_params,
             a = coeffs[0]
 
             if abs(a) > 1e-6:
-                apex_radius = 1 / abs(2*a)
+                apex_radius = 1 / abs(2 * a)
             else:
-                apex_radius = float('inf')
+                apex_radius = float("inf")
 
             # Visualize fit
             x_fit = np.linspace(x_shifted.min(), x_shifted.max(), 100)
@@ -163,29 +173,56 @@ def process_frame_edge(frame, crop_params,
 
             fit_points = np.vstack((x_fit_img, y_fit_img)).T.astype(np.int32)
 
-            cv2.polylines(imgcrop_color, [fit_points], isClosed=False, color=(255, 0, 255), thickness=2)
+            cv2.polylines(
+                imgcrop_color,
+                [fit_points],
+                isClosed=False,
+                color=(255, 0, 255),
+                thickness=2,
+            )
 
             # Visualize apex point
             cv2.circle(imgcrop_color, tuple(np.int32(apex_point)), 5, (255, 255, 0), -1)
 
             # Visualize points used for fitting
-            cv2.rectangle(imgcrop_color,
-                          (int(apex_point[0] - measure_window_half), int(apex_point[1] - vertical_window)),
-                          (int(apex_point[0] + measure_window_half), int(apex_point[1] + vertical_window)), (0, 255, 255), 1)
+            cv2.rectangle(
+                imgcrop_color,
+                (
+                    int(apex_point[0] - measure_window_half),
+                    int(apex_point[1] - vertical_window),
+                ),
+                (
+                    int(apex_point[0] + measure_window_half),
+                    int(apex_point[1] + vertical_window),
+                ),
+                (0, 255, 255),
+                1,
+            )
+
+    if yl_fitted_points is not None:
+        cv2.polylines(
+            imgcrop_color,
+            [yl_fitted_points],
+            isClosed=False,
+            color=(0, 255, 0),
+            thickness=2,
+        )
 
     results = {
-        'cropped_image': imgcrop,
-        'cropped_image_color': imgcrop_color,
-        'filtered_image': im_med,
-        'gaussian_image': im_gaussian,
-        'canny_edges': edges,
-        'binary_edge_image': clean_edges,
-        'edge_points': edge_points,
-        'num_edge_points': len(edge_points),
-        'apex_radius': apex_radius
+        "cropped_image": imgcrop,
+        "cropped_image_color": imgcrop_color,
+        "filtered_image": im_med,
+        "gaussian_image": im_gaussian,
+        "canny_edges": edges,
+        "binary_edge_image": clean_edges,
+        "edge_points": edge_points,
+        "num_edge_points": len(edge_points),
+        "apex_radius": apex_radius,
+        "apex_point": apex_point,
     }
 
     return results
+
 
 def plot_edge_points(cropped_image, edge_points):
     """
@@ -201,20 +238,23 @@ def plot_edge_points(cropped_image, edge_points):
     ax.imshow(cropped_image, cmap=PlotConfig.COLORMAP)
 
     if len(edge_points) > 0:
-        ax.plot(edge_points[:, 0], edge_points[:, 1],
-                color=PlotConfig.EDGE_POINT_COLOR,
-                marker=PlotConfig.EDGE_POINT_MARKER,
-                linestyle='none',
-                markersize=PlotConfig.EDGE_POINT_SIZE,
-                alpha=PlotConfig.EDGE_POINT_ALPHA)
+        ax.plot(
+            edge_points[:, 0],
+            edge_points[:, 1],
+            color=PlotConfig.EDGE_POINT_COLOR,
+            marker=PlotConfig.EDGE_POINT_MARKER,
+            linestyle="none",
+            markersize=PlotConfig.EDGE_POINT_SIZE,
+            alpha=PlotConfig.EDGE_POINT_ALPHA,
+        )
 
     ax.set_title(PlotConfig.PLOT_TITLE)
-    ax.axis('off')
+    ax.axis("off")
 
     return fig
 
-def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_PATH):
 
+def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_PATH):
     # Read calibration frame
     calib_frame_num = starting_frame + ProcessingConfig.CALIBRATION_FRAME_OFFSET
     video.set(cv2.CAP_PROP_POS_FRAMES, calib_frame_num)
@@ -232,42 +272,55 @@ def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_P
         canny_high=processing_config.canny_high,
         min_object_size=processing_config.min_object_size,
         sigma=processing_config.sigma,
-        adaptive_threshold=False
+        adaptive_threshold=False,
     )
 
     # Calculate centroid and average radius from edge points
-    calibration_edge_points = calibration_results['edge_points']
+    calibration_edge_points = calibration_results["edge_points"]
     if len(calibration_edge_points) > 0:
         calibration_center_x = np.mean(calibration_edge_points[:, 0])
         calibration_center_y = np.mean(calibration_edge_points[:, 1])
-        distances_from_center = np.sqrt((calibration_edge_points[:, 0] - calibration_center_x) ** 2,
-                                        (calibration_edge_points[:, 1] - calibration_center_y) ** 2)
+        distances_from_center = np.sqrt(
+            (calibration_edge_points[:, 0] - calibration_center_x) ** 2,
+            (calibration_edge_points[:, 1] - calibration_center_y) ** 2,
+        )
         calibration_radius = np.mean(distances_from_center)
         print(f"  Calibration frame average radius: {calibration_radius:.2f} pixels")
     else:
         calibration_center_x = 0
         calibration_center_y = 0
         calibration_radius = 0
-        print(f"  No edge points detected in calibration frame. Average radius set to 0.")
+        print(
+            f"  No edge points detected in calibration frame. Average radius set to 0."
+        )
 
-    print(f"  Frame {calib_frame_num}: {calibration_results['num_edge_points']} edge points detected")
+    print(
+        f"  Frame {calib_frame_num}: {calibration_results['num_edge_points']} edge points detected"
+    )
 
     calibration_results["calibration_radius"] = calibration_radius
 
     # Save calibration edge data
-    np.savez(OUTPUT_DATA_PATH / f"calibration_frame_{calib_frame_num}.npz",
-             edge_points=calibration_results['edge_points'],
-             frame_number=calib_frame_num)
+    np.savez(
+        OUTPUT_DATA_PATH / f"calibration_frame_{calib_frame_num}.npz",
+        edge_points=calibration_results["edge_points"],
+        frame_number=calib_frame_num,
+    )
 
     # Plot calibration frame
-    fig = plot_edge_points(calibration_results['cropped_image'], calibration_results['edge_points'])
-    fig.savefig(OUTPUT_IMG_PATH / f"calibration_frame_{calib_frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
+    fig = plot_edge_points(
+        calibration_results["cropped_image"], calibration_results["edge_points"]
+    )
+    fig.savefig(
+        OUTPUT_IMG_PATH / f"calibration_frame_{calib_frame_num}.png",
+        dpi=PlotConfig.FIGURE_DPI,
+    )
     plt.close(fig)
 
     return calibration_results
 
-def main(self):
 
+def main(self):
     # Create output directories if they don't exist
     PathConfig.create_output_directories()
 
@@ -276,11 +329,11 @@ def main(self):
 
     # Edge detection parameters
     canny_params = {
-        'filter_size': ProcessingConfig.DEFAULT_FILTER_SIZE,
-        'canny_low': ProcessingConfig.DEFAULT_CANNY_LOW,
-        'canny_high': ProcessingConfig.DEFAULT_CANNY_HIGH,
-        'min_object_size': ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE,
-        'adaptive_threshold': True
+        "filter_size": ProcessingConfig.DEFAULT_FILTER_SIZE,
+        "canny_low": ProcessingConfig.DEFAULT_CANNY_LOW,
+        "canny_high": ProcessingConfig.DEFAULT_CANNY_HIGH,
+        "min_object_size": ProcessingConfig.DEFAULT_MIN_OBJECT_SIZE,
+        "adaptive_threshold": True,
     }
 
     # Check if video path exists
@@ -303,8 +356,10 @@ def main(self):
     ending_frame = ProcessingConfig.DEFAULT_ENDING_FRAME
     frame_range = ending_frame - starting_frame
 
-   # Calibration frame
-    calibration_radius = calibrate(starting_frame, crop_params, video, self.OUTPUT_DATA_PATH, self.OUTPUT_IMG_PATH)
+    # Calibration frame
+    calibration_radius = calibrate(
+        starting_frame, crop_params, video, self.OUTPUT_DATA_PATH, self.OUTPUT_IMG_PATH
+    )
 
     # Process all the frames
     frame_data = []
@@ -328,33 +383,41 @@ def main(self):
             continue
 
         # Process frame
-        results = process_frame_edge(frame, crop_params, **canny_params, calibration_radius=calibration_radius)
+        results = process_frame_edge(
+            frame, crop_params, **canny_params, calibration_radius=calibration_radius
+        )
 
         # Check edge point count
-        if results['num_edge_points'] < ProcessingConfig.MIN_EDGE_POINTS:
+        if results["num_edge_points"] < ProcessingConfig.MIN_EDGE_POINTS:
             print(f"Insufficient edge points detected for frame {frame_num}. Skipping.")
             skipped_count += 1
             continue
 
         # Save edge data
-        np.savez(self.OUTPUT_DATA_PATH / f"frame_{frame_num}.npz",
-                 edge_points=results['edge_points'],
-                 frame_number=frame_num,
-                 frame_index=i)
+        np.savez(
+            self.OUTPUT_DATA_PATH / f"frame_{frame_num}.npz",
+            edge_points=results["edge_points"],
+            frame_number=frame_num,
+            frame_index=i,
+        )
 
         # Plot frame
-        fig = plot_edge_points(results['cropped_image'], results['edge_points'])
-        fig.savefig(self.OUTPUT_IMG_PATH / f"frame_{frame_num}.png", dpi=PlotConfig.FIGURE_DPI)
+        fig = plot_edge_points(results["cropped_image"], results["edge_points"])
+        fig.savefig(
+            self.OUTPUT_IMG_PATH / f"frame_{frame_num}.png", dpi=PlotConfig.FIGURE_DPI
+        )
         plt.close(fig)
 
         # Save binary edge image
-        cv2.imwrite(str(self.OUTPUT_BINARY_PATH / f"frame_{frame_num}.png"), results['binary_edge_image'])
+        cv2.imwrite(
+            str(self.OUTPUT_BINARY_PATH / f"frame_{frame_num}.png"),
+            results["binary_edge_image"],
+        )
 
         # Store summary data
-        frame_data.append({
-            'frame_number': frame_num,
-            'num_edge_points': results['num_edge_points']
-        })
+        frame_data.append(
+            {"frame_number": frame_num, "num_edge_points": results["num_edge_points"]}
+        )
 
         processed_count += 1
 

@@ -99,6 +99,15 @@ class ProcessingConfig:
     # Progress reporting
     PROGRESS_REPORT_INTERVAL = 50  # Report every N frames
 
+    # Initial guess for Bond number
+    INITIAL_BOND_NUMBER = 0.5
+
+    # Density difference
+    DENSITY_DIFFERENCE = 1000
+
+    # Calibration factor
+    CALIBRATION_FACTOR = 1.0 / 10000
+
 
 class CurrentProcessingConfig:
     """Holds the current, live values for image processing parameters."""
@@ -117,6 +126,9 @@ class CurrentProcessingConfig:
         self.clahe_enabled = ProcessingConfig.CONTRAST_ENHANCEMENT_ENABLED
         self.clahe_clip_limit = ProcessingConfig.CLAHE_CLIP_LIMIT
         self.clahe_tile_grid_size = ProcessingConfig.CLAHE_TILE_GRID_SIZE
+        self.bond_number = ProcessingConfig.INITIAL_BOND_NUMBER
+        self.delta_rho = ProcessingConfig.DENSITY_DIFFERENCE
+        self.calibration_factor = ProcessingConfig.CALIBRATION_FACTOR
 
 
 # Create a single, importable instance of the live config

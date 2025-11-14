@@ -6,7 +6,7 @@ import os
 import sys
 
 import customtkinter as ctk
-from serial.serialposix import Serial
+from serial import Serial
 
 if sys.platform != "darwin":
     from tkextrafont import Font
@@ -26,6 +26,7 @@ from image_processing import calibrate, crop_image, process_frame_edge
 from popup_windows import CalibrationPopup
 from serial_manager import SerialManager, list_ports
 from ui_builder import UIFrame
+from young_laplace import YoungLaplaceFitter
 
 
 def resource_path(relative_path):
@@ -368,6 +369,7 @@ class App(ctk.CTk):
         # Create list to store results
         self.analysis_results = []
         self.is_playing = True
+        self.yl_fitted_points = None  # Initialize for first frame
 
         self.frame.video_slider.set(0)
 
@@ -394,9 +396,49 @@ class App(ctk.CTk):
                     min_object_size=processing_config.min_object_size,
                     sigma=processing_config.sigma,
                     adaptive_threshold=True,
+                    yl_fitted_points=self.yl_fitted_points,
                 )
 
                 radius = frame_results.get("apex_radius")
+
+                edge_points = frame_results.get("edge_points")
+                apex_point = frame_results.get("apex_point")
+
+                if (
+                    edge_points is not None
+                    and radius is not None
+                    and apex_point is not None
+                ):
+                    initial_params = {
+                        "apex_radius": radius,
+                        "apex_x": apex_point[0],
+                        "apex_y": apex_point[1],
+                        "rotation": 0,
+                        "bond_number": processing_config.bond_number,
+                        "delta_rho": processing_config.delta_rho,
+                        "calibration_factor": processing_config.calibration_factor,
+                    }
+
+                    fitter = YoungLaplaceFitter(edge_points, initial_params)
+                    fitter.fit_profile()
+                    younglaplace_results = fitter.get_results()
+
+                    self.yl_fitted_points = fitter.get_fitted_profile()
+
+                    if younglaplace_results["is_converged"]:
+                        print(
+                            f"Frame {current_frame}: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
+                        )
+                        print(
+                            f"    Bond Number: {younglaplace_results['bond_number']:.4f}"
+                        )
+                        print(
+                            f"    Surface Tension: {younglaplace_results['surface_tension']:.4f} N/m"
+                        )
+                        print(
+                            f"    Calculated Volume: {younglaplace_results['volume']:.4f} m^3"
+                        )
+
                 self.analysis_results.append(
                     {
                         "frame_number": current_frame,
