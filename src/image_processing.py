@@ -141,6 +141,18 @@ def process_frame_edge(
             print(f"min x: {np.min(x_points_at_y)}, max x: {np.max(x_points_at_y)}")
             outside_edge.append((np.min(x_points_at_y), y))
             outside_edge.append((np.max(x_points_at_y), y))
+
+    # Add back points around apex
+        # Look through y levels around apex height and keep all points there
+    apex_index = np.argmax(edge_points[:, 1])
+    apex_point = edge_points[apex_index]
+    margin = 15
+
+    for y in range(apex_point[1]-margin, apex_point[1]+margin+1):
+        x_points_at_y = edge_points[edge_points[:,1] == y][:,0]
+        for x in x_points_at_y:
+            outside_edge.append((x, y))
+    
     edge_points = np.array(outside_edge)
     
     # Convert back to binary image and save to clean_edges
