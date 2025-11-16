@@ -123,6 +123,32 @@ def process_frame_edge(
 
     # Extract edge point coordinates
     edge_points = extract_edge_points(clean_edges)
+    
+    # Isolate outside edge
+    print(f"Edge points detected: {len(edge_points)}")
+    # Find Total Height to Process
+    crop_height = int(abs(processing_config.y_start - processing_config.y_end))
+    
+    print(f"Crop height: {crop_height}")
+    # Look Through each y level
+    outside_edge = []
+    for y in range(edge_points[:,1].min(), edge_points[:,1].max()+1):
+        # For each point that matches the current y level
+        x_points_at_y = edge_points[edge_points[:,1] == y][:,0]
+        if len(x_points_at_y) > 0:
+            print(f"x_points_at_y: {x_points_at_y}")
+            print(f"y: {y}")
+            print(f"min x: {np.min(x_points_at_y)}, max x: {np.max(x_points_at_y)}")
+            outside_edge.append((np.min(x_points_at_y), y))
+            outside_edge.append((np.max(x_points_at_y), y))
+    edge_points = np.array(outside_edge)
+    
+    # Convert back to binary image and save to clean_edges
+    clean_edges = np.zeros_like(clean_edges)
+    for point in edge_points:
+        clean_edges[point[1], point[0]] = 255
+    
+    print(f"Edge points detected: {len(edge_points)}")
 
     # Apex curvature fitting
     apex_radius = None
