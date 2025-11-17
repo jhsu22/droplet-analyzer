@@ -124,43 +124,66 @@ def process_frame_edge(
     # Extract edge point coordinates
     edge_points = extract_edge_points(clean_edges)
     
-    # Isolate outside edge
-    print(f"Edge points detected: {len(edge_points)}")
-    # Find Total Height to Process
-    crop_height = int(abs(processing_config.y_start - processing_config.y_end))
-    
-    print(f"Crop height: {crop_height}")
-    # Look Through each y level
-    outside_edge = []
-    for y in range(edge_points[:,1].min(), edge_points[:,1].max()+1):
-        # For each point that matches the current y level
-        x_points_at_y = edge_points[edge_points[:,1] == y][:,0]
-        if len(x_points_at_y) > 0:
-            print(f"x_points_at_y: {x_points_at_y}")
-            print(f"y: {y}")
-            print(f"min x: {np.min(x_points_at_y)}, max x: {np.max(x_points_at_y)}")
-            outside_edge.append((np.min(x_points_at_y), y))
-            outside_edge.append((np.max(x_points_at_y), y))
+    # Isolate outside edge (vectorized)
+    # If there are no edge points, keep clean_edges empty and continue
+    if edge_points.size == 0:
+        edge_points = np.empty((0, 2), dtype=np.int32)
+    else:
+        # Split into x and y arrays (ensure integer types)
+        xs = edge_points[:, 0].astype(np.int32)
+        ys = edge_points[:, 1].astype(np.int32)
 
-    # Add back points around apex
-        # Look through y levels around apex height and keep all points there
-    apex_index = np.argmax(edge_points[:, 1])
-    apex_point = edge_points[apex_index]
-    margin = 15
+        # Sort by y so points with the same y are contiguous
+        order = np.argsort(ys, kind="stable")
+        sorted_ys = ys[order]
+        sorted_xs = xs[order]
 
-    for y in range(apex_point[1]-margin, apex_point[1]+margin+1):
-        x_points_at_y = edge_points[edge_points[:,1] == y][:,0]
-        for x in x_points_at_y:
-            outside_edge.append((x, y))
-    
-    edge_points = np.array(outside_edge)
-    
-    # Convert back to binary image and save to clean_edges
+        # Get unique y values and the start index of each group
+        unique_y, y_start = np.unique(sorted_ys, return_index=True)
+
+        # Compute min and max x for each y group using reduceat (fast)
+        min_x_per_y = np.minimum.reduceat(sorted_xs, y_start)
+        max_x_per_y = np.maximum.reduceat(sorted_xs, y_start)
+
+        # Create pairs (x, y) for the left and right edges
+        left_pairs = np.column_stack((min_x_per_y, unique_y))
+        right_pairs = np.column_stack((max_x_per_y, unique_y))
+
+        # Combine left/right edge points
+        outside_edge = np.vstack((left_pairs, right_pairs))
+
+        # Add back all points within a small vertical margin around the apex
+        apex_index = np.argmax(ys)
+        apex_point = edge_points[apex_index]
+        margin = 15
+        y_min_apex = apex_point[1] - margin
+        y_max_apex = apex_point[1] + margin
+
+        # Mask points within apex vertical window and include them
+        apex_mask = (ys >= y_min_apex) & (ys <= y_max_apex)
+        if np.any(apex_mask):
+            apex_points = edge_points[apex_mask]
+            # Append apex region points (already (x,y) pairs)
+            outside_edge = np.vstack((outside_edge, apex_points))
+
+        # Final set of edge points to keep
+        edge_points = outside_edge.astype(np.int32)
+
+    # Convert back to binary image and save to clean_edges (fast vectorized write)
     clean_edges = np.zeros_like(clean_edges)
-    for point in edge_points:
-        clean_edges[point[1], point[0]] = 255
+    if edge_points.size > 0:
+        xs = edge_points[:, 0].astype(np.intp)
+        ys = edge_points[:, 1].astype(np.intp)
+        # Clip / validate indices to image bounds to prevent indexing errors
+        valid = (
+            (xs >= 0)
+            & (xs < clean_edges.shape[1])
+            & (ys >= 0)
+            & (ys < clean_edges.shape[0])
+        )
+        if np.any(valid):
+            clean_edges[ys[valid], xs[valid]] = 255
     
-    print(f"Edge points detected: {len(edge_points)}")
 
     # Apex curvature fitting
     apex_radius = None
