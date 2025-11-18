@@ -106,7 +106,10 @@ class ProcessingConfig:
     DENSITY_DIFFERENCE = 1000
 
     # Calibration factor
-    CALIBRATION_FACTOR = 1.0 / 10000
+    CALIBRATION_FACTOR = 0.000724 / 150
+
+    # Camera index
+    DEFAULT_CAMERA_INDEX = 0
 
 
 class CurrentProcessingConfig:
@@ -129,6 +132,7 @@ class CurrentProcessingConfig:
         self.bond_number = ProcessingConfig.INITIAL_BOND_NUMBER
         self.delta_rho = ProcessingConfig.DENSITY_DIFFERENCE
         self.calibration_factor = ProcessingConfig.CALIBRATION_FACTOR
+        self.camera_index = ProcessingConfig.DEFAULT_CAMERA_INDEX
 
 
 # Create a single, importable instance of the live config
