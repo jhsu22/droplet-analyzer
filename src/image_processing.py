@@ -126,7 +126,7 @@ def process_frame_edge(
     
     # Isolate outside edge (vectorized)
     # If there are no edge points, keep clean_edges empty and continue
-    if edge_points.size == 0:
+    if edge_points.size <= 500:
         edge_points = np.empty((0, 2), dtype=np.int32)
     else:
         # Split into x and y arrays (ensure integer types)
@@ -144,18 +144,49 @@ def process_frame_edge(
         # Compute min and max x for each y group using reduceat (fast)
         min_x_per_y = np.minimum.reduceat(sorted_xs, y_start)
         max_x_per_y = np.maximum.reduceat(sorted_xs, y_start)
+        
+        # Find apex for reference (used for top/bottom half split)
+        apex_index = np.argmax(ys)
+        apex_y = ys[apex_index]
+        
+        # Vertical Line Removal (vectorized), limited to top of image to half way point to apex
+        vertical_removal_margin = 3
 
-        # Create pairs (x, y) for the left and right edges
-        left_pairs = np.column_stack((min_x_per_y, unique_y))
-        right_pairs = np.column_stack((max_x_per_y, unique_y))
-
+        # Identify which rows are in the top half (y < apex_y/2)
+        top_half_mask = unique_y < apex_y/2
+        
+        # Count occurrences of x values only in top half
+        top_half_xs = np.concatenate((min_x_per_y[top_half_mask], max_x_per_y[top_half_mask]))
+        if len(top_half_xs) > 0:
+            unique_x_th, inverse_indices_th = np.unique(top_half_xs, return_inverse=True)
+            counts_th = np.bincount(inverse_indices_th)
+            
+            # Get the two most common x values in top half
+            top_2_indices = np.argsort(counts_th)[-2:][::-1]  # Sort descending, take top 2
+            top_x_values = unique_x_th[top_2_indices[counts_th[top_2_indices] > 0]]
+        else:
+            top_x_values = np.array([])
+        
+        # Create boolean masks for values to keep
+        # In top half: filter out vertical lines; in bottom half: keep all
+        mask_min = np.ones(len(min_x_per_y), dtype=bool)
+        mask_max = np.ones(len(max_x_per_y), dtype=bool)
+        
+        for top_x in top_x_values:
+            # Only apply removal to top half
+            mask_min[top_half_mask] &= np.abs(min_x_per_y[top_half_mask] - top_x) > vertical_removal_margin
+            mask_max[top_half_mask] &= np.abs(max_x_per_y[top_half_mask] - top_x) > vertical_removal_margin
+        
+        # Create pairs only for non-removed points
+        left_pairs = np.column_stack((min_x_per_y[mask_min], unique_y[mask_min]))
+        right_pairs = np.column_stack((max_x_per_y[mask_max], unique_y[mask_max]))
+        
         # Combine left/right edge points
         outside_edge = np.vstack((left_pairs, right_pairs))
 
         # Add back all points within a small vertical margin around the apex
-        apex_index = np.argmax(ys)
         apex_point = edge_points[apex_index]
-        margin = 15
+        margin = 5
         y_min_apex = apex_point[1] - margin
         y_max_apex = apex_point[1] + margin
 
