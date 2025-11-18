@@ -36,7 +36,7 @@ class BasePopup(ctk.CTkToplevel):
 
         # Make modal
         self.transient(parent)
-        self.grab_set()
+        self.after(10, self.grab_set)
 
         # Center on parent window
         self.update_idletasks()

@@ -8,7 +8,7 @@ import sys
 import customtkinter as ctk
 from serial import Serial
 
-if sys.platform != "darwin":
+if sys.platform == "win32":
     from tkextrafont import Font
 
 import cv2
@@ -117,7 +117,7 @@ class App(ctk.CTk):
     def _load_fonts(self):
         # Load custom fonts
         try:
-            if sys.platform != "darwin":
+            if sys.platform == "win32":
                 Font(file=self.FONT_PATH, family=UIConfig.FONT_FAMILY)
 
             self.custom_font = ctk.CTkFont(
