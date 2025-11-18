@@ -5,6 +5,8 @@ Contains all constants and default values used throughout the application
 
 from pathlib import Path
 
+import numpy as np
+
 
 class UIConfig:
     """UI-related configuration constants"""
@@ -105,6 +107,9 @@ class ProcessingConfig:
     # Density difference
     DENSITY_DIFFERENCE = 1000
 
+    # Syringe width in mm
+    SYRINGE_WIDTH_MM = 0.718
+
     # Calibration factor
     CALIBRATION_FACTOR = 0.000724 / 150
 
@@ -131,6 +136,7 @@ class CurrentProcessingConfig:
         self.clahe_tile_grid_size = ProcessingConfig.CLAHE_TILE_GRID_SIZE
         self.bond_number = ProcessingConfig.INITIAL_BOND_NUMBER
         self.delta_rho = ProcessingConfig.DENSITY_DIFFERENCE
+        self.syringe_width_mm = ProcessingConfig.SYRINGE_WIDTH_MM
         self.calibration_factor = ProcessingConfig.CALIBRATION_FACTOR
         self.camera_index = ProcessingConfig.DEFAULT_CAMERA_INDEX
 

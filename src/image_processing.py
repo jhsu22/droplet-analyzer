@@ -123,10 +123,10 @@ def process_frame_edge(
 
     # Extract edge point coordinates
     edge_points = extract_edge_points(clean_edges)
-    
+
     # Isolate outside edge (vectorized)
     # If there are no edge points, keep clean_edges empty and continue
-    if edge_points.size <= 500:
+    if edge_points.size <= 50:
         edge_points = np.empty((0, 2), dtype=np.int32)
     else:
         # Split into x and y arrays (ensure integer types)
@@ -144,43 +144,53 @@ def process_frame_edge(
         # Compute min and max x for each y group using reduceat (fast)
         min_x_per_y = np.minimum.reduceat(sorted_xs, y_start)
         max_x_per_y = np.maximum.reduceat(sorted_xs, y_start)
-        
+
         # Find apex for reference (used for top/bottom half split)
         apex_index = np.argmax(ys)
         apex_y = ys[apex_index]
-        
+
         # Vertical Line Removal (vectorized), limited to top of image to half way point to apex
         vertical_removal_margin = 3
 
         # Identify which rows are in the top half (y < apex_y/2)
-        top_half_mask = unique_y < apex_y/2
-        
+        top_half_mask = unique_y < apex_y / 2
+
         # Count occurrences of x values only in top half
-        top_half_xs = np.concatenate((min_x_per_y[top_half_mask], max_x_per_y[top_half_mask]))
+        top_half_xs = np.concatenate(
+            (min_x_per_y[top_half_mask], max_x_per_y[top_half_mask])
+        )
         if len(top_half_xs) > 0:
-            unique_x_th, inverse_indices_th = np.unique(top_half_xs, return_inverse=True)
+            unique_x_th, inverse_indices_th = np.unique(
+                top_half_xs, return_inverse=True
+            )
             counts_th = np.bincount(inverse_indices_th)
-            
+
             # Get the two most common x values in top half
-            top_2_indices = np.argsort(counts_th)[-2:][::-1]  # Sort descending, take top 2
+            top_2_indices = np.argsort(counts_th)[-2:][
+                ::-1
+            ]  # Sort descending, take top 2
             top_x_values = unique_x_th[top_2_indices[counts_th[top_2_indices] > 0]]
         else:
             top_x_values = np.array([])
-        
+
         # Create boolean masks for values to keep
         # In top half: filter out vertical lines; in bottom half: keep all
         mask_min = np.ones(len(min_x_per_y), dtype=bool)
         mask_max = np.ones(len(max_x_per_y), dtype=bool)
-        
+
         for top_x in top_x_values:
             # Only apply removal to top half
-            mask_min[top_half_mask] &= np.abs(min_x_per_y[top_half_mask] - top_x) > vertical_removal_margin
-            mask_max[top_half_mask] &= np.abs(max_x_per_y[top_half_mask] - top_x) > vertical_removal_margin
-        
+            mask_min[top_half_mask] &= (
+                np.abs(min_x_per_y[top_half_mask] - top_x) > vertical_removal_margin
+            )
+            mask_max[top_half_mask] &= (
+                np.abs(max_x_per_y[top_half_mask] - top_x) > vertical_removal_margin
+            )
+
         # Create pairs only for non-removed points
         left_pairs = np.column_stack((min_x_per_y[mask_min], unique_y[mask_min]))
         right_pairs = np.column_stack((max_x_per_y[mask_max], unique_y[mask_max]))
-        
+
         # Combine left/right edge points
         outside_edge = np.vstack((left_pairs, right_pairs))
 
@@ -214,10 +224,10 @@ def process_frame_edge(
         )
         if np.any(valid):
             clean_edges[ys[valid], xs[valid]] = 255
-    
 
     # Apex curvature fitting
     apex_radius = None
+    apex_point = None
 
     # Check for good amount of edge points
     if len(edge_points) > 50:
@@ -311,6 +321,7 @@ def process_frame_edge(
         "num_edge_points": len(edge_points),
         "apex_radius": apex_radius,
         "apex_point": apex_point,
+        "top_x_values": top_x_values,
     }
 
     return results
@@ -391,6 +402,22 @@ def calibrate(starting_frame, crop_params, video, OUTPUT_DATA_PATH, OUTPUT_IMG_P
     )
 
     calibration_results["calibration_radius"] = calibration_radius
+
+    # Calculate calibration scaling factor to turn pixels into mm
+
+    # Save top 2 indices to calibrate syringe
+    top_x_values = calibration_results["top_x_values"]
+
+    x_left = top_x_values[0]
+    x_right = top_x_values[1]
+
+    syringe_width_pixels = abs(x_right - x_left)
+
+    syringe_width_mm = processing_config.syringe_width_mm
+
+    calibration_factor = syringe_width_mm / syringe_width_pixels
+
+    processing_config.calibration_factor = calibration_factor
 
     # Save calibration edge data
     np.savez(

@@ -156,11 +156,13 @@ class YoungLaplaceFitter:
         # Calculate surface tension using the fitted parameters
 
         # Convert apex radius from pixels to physical units
-        apex_radius_physical = self.apex_radius * self.calibration_factor
+        apex_radius_physical_mm = self.apex_radius * self.calibration_factor
+
+        apex_radius_physical = apex_radius_physical_mm / 1000
 
         surface_tension = (
-            self.delta_rho * self.g * apex_radius_physical**2 / self.bond_number
-        )
+            self.delta_rho * self.g * apex_radius_physical**2
+        ) / self.bond_number
 
         return surface_tension
 
