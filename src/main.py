@@ -71,6 +71,7 @@ class App(ctk.CTk):
         self.video_capture = None
         self.is_playing = False
         self.is_calibrated = False
+        self.is_live = False
         self.num_frames = 0
 
         self.debug_popup = None
@@ -92,6 +93,7 @@ class App(ctk.CTk):
 
         print("---Application Started ---")
 
+    # === Initialization === #
     def _set_output_paths(self):
         # Set base paths
         self.VIDEO_PATH = PathConfig.DEFAULT_VIDEO_FILE
@@ -136,6 +138,14 @@ class App(ctk.CTk):
                 size=UIConfig.FONT_SIZE_NORMAL, weight="bold"
             )
 
+    def _load_ports(self):
+        # Load available serial ports
+        ports, descriptions = list_ports()
+
+        serial_config.ports = ports
+        serial_config.descriptions = descriptions
+
+    # === UI Logic === #
     def _configure_window(self):
         # Configure main window properties
         self.title(UIConfig.WINDOW_TITLE)
@@ -177,13 +187,78 @@ class App(ctk.CTk):
             size=(new_width, new_height),
         )
 
-    def _load_ports(self):
-        # Load available serial ports
-        ports, descriptions = list_ports()
+    # === Analysis Logic === #
+    def start_calibration(self):
+        current_frame = int(self.frame.video_slider.get())
+        print(f"Starting calibration on frame {current_frame}")
 
-        serial_config.ports = ports
-        serial_config.descriptions = descriptions
+        calibration_results = calibrate(
+            starting_frame=current_frame,
+            crop_params=processing_config,
+            video=self.video_capture,
+            OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH,
+            OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH,
+        )
 
+        final_image_np = calibration_results.get("cropped_image_color")
+
+        if final_image_np is not None:
+            final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
+
+            panel_width = self.frame.image_panel.winfo_width()
+            panel_height = self.frame.image_panel.winfo_height()
+
+            ctk_image = self._create_ctk_image(
+                final_image_rgb, panel_width, panel_height
+            )
+
+            if ctk_image:
+                self.frame.image_label.configure(image=ctk_image, text="")
+                self.frame.image_label.image = ctk_image
+
+        panel_width = PopupConfig.DEBUG_POPUP_WIDTH // 3
+        panel_height = PopupConfig.DEBUG_POPUP_HEIGHT - 150
+
+        images_for_popup = {
+            "median": self._create_ctk_image(
+                calibration_results.get("filtered_image"), panel_width, panel_height
+            ),
+            "gaussian": self._create_ctk_image(
+                calibration_results.get("gaussian_image"), panel_width, panel_height
+            ),
+            "final": self._create_ctk_image(
+                calibration_results.get("binary_edge_image"), panel_width, panel_height
+            ),
+        }
+
+        CalibrationPopup(self, images=images_for_popup)
+
+        calibration_radius = calibration_results.get("calibration_radius", 0)
+
+        self.is_calibrated = True
+        self.frame.start_analysis_button.configure(state="normal")
+        print("Calibration complete. Ready to start analysis.")
+
+    def start_analysis(self):
+        if not self.is_calibrated:
+            print("Run calibration before analysis.")
+            return
+
+        print("Starting analysis.")
+        # Create list to store results
+        self.analysis_results = []
+        self.is_playing = True
+        self.yl_fitted_points = None
+
+        # Start processing loop for image analysis
+        if self.is_live:
+            return
+
+        # Start processing loop for video analysis
+        self.frame.video_slider.set(0)
+        self.update_video()
+
+    # === Video File Logic === #
     def load_video(self, video_path):
         # Load video, update UI controls, and show first frame
         if self.video_capture:
@@ -309,73 +384,6 @@ class App(ctk.CTk):
 
         self.show_frame(current_frame)
 
-    def start_calibration(self):
-        current_frame = int(self.frame.video_slider.get())
-        print(f"Starting calibration on frame {current_frame}")
-
-        calibration_results = calibrate(
-            starting_frame=current_frame,
-            crop_params=processing_config,
-            video=self.video_capture,
-            OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH,
-            OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH,
-        )
-
-        final_image_np = calibration_results.get("cropped_image_color")
-
-        if final_image_np is not None:
-            final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
-
-            panel_width = self.frame.image_panel.winfo_width()
-            panel_height = self.frame.image_panel.winfo_height()
-
-            ctk_image = self._create_ctk_image(
-                final_image_rgb, panel_width, panel_height
-            )
-
-            if ctk_image:
-                self.frame.image_label.configure(image=ctk_image, text="")
-                self.frame.image_label.image = ctk_image
-
-        panel_width = PopupConfig.DEBUG_POPUP_WIDTH // 3
-        panel_height = PopupConfig.DEBUG_POPUP_HEIGHT - 150
-
-        images_for_popup = {
-            "median": self._create_ctk_image(
-                calibration_results.get("filtered_image"), panel_width, panel_height
-            ),
-            "gaussian": self._create_ctk_image(
-                calibration_results.get("gaussian_image"), panel_width, panel_height
-            ),
-            "final": self._create_ctk_image(
-                calibration_results.get("binary_edge_image"), panel_width, panel_height
-            ),
-        }
-
-        CalibrationPopup(self, images=images_for_popup)
-
-        calibration_radius = calibration_results.get("calibration_radius", 0)
-
-        self.is_calibrated = True
-        self.frame.start_analysis_button.configure(state="normal")
-        print("Calibration complete. Ready to start analysis.")
-
-    def start_analysis(self):
-        if not self.is_calibrated:
-            print("Run calibration before analysis.")
-            return
-
-        print("Starting analysis.")
-        # Create list to store results
-        self.analysis_results = []
-        self.is_playing = True
-        self.yl_fitted_points = None  # Initialize for first frame
-
-        self.frame.video_slider.set(0)
-
-        # Start processing loop
-        self.update_video()
-
     def update_video(self):
         if not self.is_playing:
             return
@@ -468,18 +476,139 @@ class App(ctk.CTk):
                         self.frame.image_label.configure(image=ctk_image, text="")
                         self.frame.image_label.image = ctk_image
 
-            next_frame = current_frame + 1
-            self.frame.video_slider.set(next_frame)
-            self.frame.frame_number_label.configure(
-                text=f"Frame {next_frame}/{int(self.num_frames - 1)}"
-            )
+                next_frame = current_frame + 1
+                self.frame.video_slider.set(next_frame)
+                self.frame.frame_number_label.configure(
+                    text=f"Frame {next_frame}/{int(self.num_frames - 1)}"
+                )
 
-            self.after(15, self.update_video)
+                self.after(15, self.update_video)
         else:
             print("Analysis complete.")
             print(f"Processsed {len(self.analysis_results)} frames.")
             self.is_playing = False
 
+    # === Live Video Logic === #
+    def load_camera(self, index):
+        # Initialize live camera and start feed
+        if self.video_capture:
+            self.video_capture.release()
+
+        # Initialize camera
+        self.video_capture = cv2.VideoCapture(index)
+
+        if not self.video_capture.isOpened():
+            print("Error: Could not open camera")
+            self.video_capture = None
+            return
+
+        # Set state flags
+        self.is_live = True  # Live camera flag
+        self.is_playing = False  # Analysis flag
+        self.is_calibrated = False  # Calibration flag
+
+        self.frame.video_slider.configure(state="disabled")
+        self.frame.frame_number_label.configure(text="LIVE FEED")
+        self.frame.calibrate_button.configure(state="normal")
+        self.frame.start_analysis_button.configure(state="disabled")
+
+        self.update_camera_feed()
+
+    def update_camera_feed(self):
+        # Continuous loop for live camera feed
+        if not self.is_live or not self.video_capture:
+            return
+
+        ret, frame = self.video_capture.read()
+
+        if ret:
+            # If Analysis is running
+            if self.is_playing and self.is_calibrated:
+                frame_results = process_frame_edge(
+                    frame,
+                    crop_params=processing_config,
+                    filter_size=processing_config.filter_size,
+                    canny_low=processing_config.canny_low,
+                    canny_high=processing_config.canny_high,
+                    min_object_size=processing_config.min_object_size,
+                    sigma=processing_config.sigma,
+                    adaptive_threshold=True,
+                    yl_fitted_points=self.yl_fitted_points,
+                )
+
+                # Extract results
+                radius = frame_results.get("apex_radius")
+                edge_points = frame_results.get("edge_points")
+                apex_point = frame_results.get("apex_point")
+
+                if (
+                    edge_points is not None
+                    and radius is not None
+                    and apex_point is not None
+                ):
+                    initial_params = {
+                        "apex_radius": radius,
+                        "apex_x": apex_point[0],
+                        "apex_y": apex_point[1],
+                        "rotation": 0,
+                        "bond_number": processing_config.bond_number,
+                        "delta_rho": processing_config.delta_rho,
+                        "calibration_factor": processing_config.calibration_factor,
+                    }
+
+                    fitter = YoungLaplaceFitter(edge_points, initial_params)
+                    fitter.fit_profile()
+
+                    self.yl_fitted_points = fitter.get_fitted_profile()
+
+                    younglaplace_results = fitter.get_results()
+
+                    if younglaplace_results["is_converged"]:
+                        print(
+                            f"Live Image: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
+                        )
+                        print(
+                            f"    Bond Number: {younglaplace_results['bond_number']:.4f}"
+                        )
+                        print(
+                            f"    Surface Tension: {younglaplace_results['surface_tension']:.4f} N/m"
+                        )
+                        print(
+                            f"    Calculated Volume: {younglaplace_results['volume']:.4f} m^3"
+                        )
+
+            else:
+                display_frame = crop_image(
+                    frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                    crop_params=processing_config,
+                )
+
+                # Convert to Pillow image
+                if self.is_playing:
+                    display_rgb = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+                else:
+                    display_rgb = display_frame
+
+                # Get panel dimensions
+                panel_width = self.frame.image_panel.winfo_width()
+                panel_height = self.frame.image_panel.winfo_height()
+
+                # Create and set the image
+                ctk_image = self._create_ctk_image(
+                    display_rgb, panel_width, panel_height
+                )
+
+                if ctk_image:
+                    self.frame.image_label.configure(image=ctk_image, text="")
+                    self.frame.image_label.image = ctk_image
+
+            # else:
+            # print("Warning: missed frame from camera feed")
+
+        # Schedule the next update (approx 30 FPS -> 33ms)
+        self.after(30, self.update_camera_feed)
+
+    # === Serial Logic === #
     def connect_serial(self):
         # Get port and baud rate from UI widgets
         port = self.frame.port_entry.get()

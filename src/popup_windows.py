@@ -513,24 +513,24 @@ class VideoPopup(BasePopup):
                 chosen_camera = cam
                 break
 
-            if chosen_camera:
-                try:
-                    cap = cv2.VideoCapture(chosen_camera["index"])
-                    ret, frame = cap.read()
-                    if ret:
-                        cv2.imshow("Camera test", frame)
-                        cv2.waitKey(3000)
+        if chosen_camera:
+            try:
+                cap = cv2.VideoCapture(chosen_camera["index"])
+                ret, frame = cap.read()
+                if ret:
+                    cv2.imshow("Camera test", frame)
+                    cv2.waitKey(3000)
 
-                        cap.release()
+                    cap.release()
 
-                except Exception as e:
-                    print(f"Error testing camera: {e}")
+            except Exception as e:
+                print(f"Error testing camera: {e}")
 
-                finally:
-                    cv2.destroyWindow("Camera test")
+            finally:
+                cv2.destroyWindow("Camera test")
 
-            else:
-                print("No camera selected")
+        else:
+            print("No camera selected")
 
     def load_video(self):
         """Load the selected video file"""
@@ -550,11 +550,11 @@ class VideoPopup(BasePopup):
                 chosen_camera = cam
                 break
 
-            if chosen_camera:
-                self.selected_camera_index = chosen_camera["index"]
-                print(f"Starting live feed for camera {self.selected_camera_index}")
-            else:
-                print("No valid camera selected,")
+        if chosen_camera:
+            self.parent.load_camera(chosen_camera["index"])
+            print(f"Starting live feed for camera {self.selected_camera_index}")
+        else:
+            print("No valid camera selected,")
 
         print(f"Resolution: {self.resolution_combo.get()}")
         print(f"FPS: {self.fps_combo.get()}")

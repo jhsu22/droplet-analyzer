@@ -64,10 +64,10 @@ class ProcessingConfig:
 
     # Default crop parameters (for 1920x1080 video)
     DEFAULT_CROP = {
-        "initial_x_crop": 445,
-        "initial_y_crop": 88,
-        "x_max": 1160,
-        "y_max": 932,
+        "initial_x_crop": 0,
+        "initial_y_crop": 0,
+        "x_max": 480,
+        "y_max": 480,
     }
 
     # Default Canny edge detection parameters
