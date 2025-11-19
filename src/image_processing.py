@@ -280,11 +280,13 @@ def process_frame_edge(
                 [fit_points],
                 isClosed=False,
                 color=(255, 0, 255),
-                thickness=2,
+                thickness=5,
             )
 
             # Visualize apex point
-            cv2.circle(imgcrop_color, tuple(np.int32(apex_point)), 5, (255, 255, 0), -1)
+            cv2.circle(
+                imgcrop_color, tuple(np.int32(apex_point)), 10, (255, 255, 0), -1
+            )
 
             # Visualize points used for fitting
             cv2.rectangle(
@@ -307,7 +309,7 @@ def process_frame_edge(
             [yl_fitted_points],
             isClosed=False,
             color=(0, 255, 0),
-            thickness=2,
+            thickness=5,
         )
 
     results = {

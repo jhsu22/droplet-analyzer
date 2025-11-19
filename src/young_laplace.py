@@ -181,27 +181,32 @@ class YoungLaplaceFitter:
         vol_dimensionless = np.trapz(integrand, s)
 
         # Convert dimensionless volume to physical volume
-        apex_radius_physical = self.apex_radius * self.calibration_factor
-        volume_physical = vol_dimensionless * apex_radius_physical**3
+        apex_radius_mm = self.apex_radius * self.calibration_factor
+
+        # Convert mm to meters
+        apex_radius_meters = apex_radius_mm / 1000.0
+
+        # Calculate volume in cubic meters (m^3)
+        volume_physical = vol_dimensionless * apex_radius_meters**3
 
         return volume_physical
 
     def get_results(self):
-        # Calculate surface tension
+        # Calculate surface tension (Already correct in your code)
         surface_tension = self.calculate_surface_tension()
 
-        # Calculate volume
-        volume = self.calculate_volume()
+        # Calculate volume (mL)
+        volume_ml = self.calculate_volume() / 1000
 
-        # Convert apex radius from pixels to physical units
-        apex_radius_physical = self.apex_radius * self.calibration_factor
+        # Convert apex radius from pixels to physical units (mm)
+        apex_radius_mm = self.apex_radius * self.calibration_factor
 
         return {
             "surface_tension": surface_tension,
-            "volume": volume,
+            "volume": volume_ml,
             "bond_number": self.bond_number,
             "apex_radius_pixels": self.apex_radius,
-            "apex_radius_physical": apex_radius_physical,
+            "apex_radius_physical": apex_radius_mm,  # Now in Meters
             "apex_x": self.apex_x,
             "apex_y": self.apex_y,
             "rotation": self.rotation,

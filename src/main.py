@@ -195,6 +195,29 @@ class App(ctk.CTk):
             size=(new_width, new_height),
         )
 
+    def update_fit_results(self, results):
+        # Updates the results panel with calculated data
+        if not results:
+            return
+
+        # Format the output string
+        text = (
+            f"\nBond Number:      {results['bond_number']:.4f}\n"
+            f"Surface Tension:  {results['surface_tension'] * 1000:.4f} mN/m\n"
+            f"Volume:           {results['volume'] * 1e9:.4e} mL\n"
+            f"Apex Radius:      {results['apex_radius_physical']:.4e} mm\n"
+        )
+
+        # Update the UI element
+        try:
+            self.frame.fit_text.configure(state="normal")
+            self.frame.fit_text.delete("0.0", "end")
+            self.frame.fit_text.insert("0.0", text)
+            self.frame.fit_text.configure(state="disabled")
+
+        except Exception as e:
+            print(f"Error updating UI: {e}")
+
     # === Analysis Logic === #
     def start_calibration(self):
         current_frame = int(self.frame.video_slider.get())
@@ -325,6 +348,8 @@ class App(ctk.CTk):
                     self.yl_fitted_points = fitter.get_fitted_profile()
 
                     younglaplace_results = fitter.get_results()
+
+                    self.after(0, self.update_fit_results, younglaplace_results)
 
                     # Output calculation results
                     if younglaplace_results["is_converged"]:
@@ -520,18 +545,7 @@ class App(ctk.CTk):
                     self.yl_fitted_points = fitter.get_fitted_profile()
 
                     if younglaplace_results["is_converged"]:
-                        print(
-                            f"Frame {current_frame}: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
-                        )
-                        print(
-                            f"    Bond Number: {younglaplace_results['bond_number']:.4f}"
-                        )
-                        print(
-                            f"    Surface Tension: {younglaplace_results['surface_tension']:.4f} N/m"
-                        )
-                        print(
-                            f"    Calculated Volume: {younglaplace_results['volume']:.4f} m^3"
-                        )
+                        self.update_fit_results(younglaplace_results)
 
                 self.analysis_results.append(
                     {
@@ -543,6 +557,9 @@ class App(ctk.CTk):
                 if current_frame % 50 == 0:
                     if radius is not None:
                         print(f"Frame {current_frame}: Apex Radius = {radius:.2f}")
+                        print(
+                            f"Frame {current_frame}: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
+                        )
                     else:
                         print(f"Frame {current_frame}: Apex fit failed.")
 
@@ -630,7 +647,7 @@ class App(ctk.CTk):
                         [self.yl_fitted_points],
                         isClosed=False,
                         color=(0, 255, 0),
-                        thickness=2,
+                        thickness=5,
                     )
 
                 # Get panel dimensions
