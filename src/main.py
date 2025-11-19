@@ -2,8 +2,10 @@
 Pendant Droplet Analyzer - Main Application
 """
 
+import copy
 import os
 import sys
+import threading
 
 import customtkinter as ctk
 from serial import Serial
@@ -83,6 +85,12 @@ class App(ctk.CTk):
         self._load_ports()
         self._configure_window()
         self._create_ui()
+
+        # Threading variables
+        self.current_frame = None  # Latest frame from camera
+        self.analysis_results = None  # Latest analysis results
+        self.analysis_thread = None  # Thread object for analysis
+        self.lock = threading.Lock()
 
         # Create textbox widget
         output_textbox = self.frame.output_text
@@ -252,11 +260,89 @@ class App(ctk.CTk):
 
         # Start processing loop for image analysis
         if self.is_live:
-            return
+            self.analysis_thread = threading.Thread(
+                target=self.analysis_worker, daemon=True
+            )
+            self.analysis_thread.start()
+            print("Live analysis started in background thread.")
 
         # Start processing loop for video analysis
         self.frame.video_slider.set(0)
         self.update_video()
+
+    def analysis_worker(self):
+        # Background thread that processes the latest available frame
+        while self.is_playing and self.is_live:
+            # Take latest frame
+            frame_to_process = None
+
+            with self.lock:
+                if self.current_frame is not None:
+                    frame_to_process = self.current_frame.copy()
+
+                if frame_to_process is None:
+                    self.after(10)
+                    continue
+
+            # Run analysis code
+            try:
+                frame_results = process_frame_edge(
+                    frame_to_process,
+                    crop_params=processing_config,
+                    filter_size=processing_config.filter_size,
+                    canny_low=processing_config.canny_low,
+                    canny_high=processing_config.canny_high,
+                    min_object_size=processing_config.min_object_size,
+                    sigma=processing_config.sigma,
+                    adaptive_threshold=True,
+                    yl_fitted_points=self.yl_fitted_points,  # Use fitted points from previous frame
+                )
+
+                radius = frame_results.get("apex_radius")
+                edge_points = frame_results.get("edge_points")
+                apex_point = frame_results.get("apex_point")
+
+                if (
+                    edge_points is not None
+                    and radius is not None
+                    and apex_point is not None
+                ):
+                    initial_params = {
+                        "apex_radius": radius,
+                        "apex_x": apex_point[0],
+                        "apex_y": apex_point[1],
+                        "rotation": 0,
+                        "bond_number": processing_config.bond_number,
+                        "delta_rho": processing_config.delta_rho,
+                        "calibration_factor": processing_config.calibration_factor,
+                    }
+
+                    # Get Young-Laplace fit profile
+                    fitter = YoungLaplaceFitter(edge_points, initial_params)
+                    fitter.fit_profile()
+
+                    # Get fit points
+                    self.yl_fitted_points = fitter.get_fitted_profile()
+
+                    younglaplace_results = fitter.get_results()
+
+                    # Output calculation results
+                    if younglaplace_results["is_converged"]:
+                        print(
+                            f"Live Image: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
+                        )
+                        print(
+                            f"    Bond Number: {younglaplace_results['bond_number']:.4f}"
+                        )
+                        print(
+                            f"    Surface Tension: {younglaplace_results['surface_tension']:.4f} N/m"
+                        )
+                        print(
+                            f"    Calculated Volume: {younglaplace_results['volume']:.4f} m^3"
+                        )
+
+            except Exception as e:
+                print(f"Analysis error: {e}")
 
     # === Video File Logic === #
     def load_video(self, video_path):
@@ -495,7 +581,12 @@ class App(ctk.CTk):
             self.video_capture.release()
 
         # Initialize camera
-        self.video_capture = cv2.VideoCapture(index)
+        if sys.platform == "win32":
+            self.video_capture = cv2.VideoCapture(
+                index, cv2.CAP_DSHOW
+            )  # Use DirectShow on windows for better performance
+        else:
+            self.video_capture = cv2.VideoCapture(index)
 
         if not self.video_capture.isOpened():
             print("Error: Could not open camera")
@@ -522,72 +613,25 @@ class App(ctk.CTk):
         ret, frame = self.video_capture.read()
 
         if ret:
-            # If Analysis is running
-            if self.is_playing and self.is_calibrated:
-                frame_results = process_frame_edge(
-                    frame,
-                    crop_params=processing_config,
-                    filter_size=processing_config.filter_size,
-                    canny_low=processing_config.canny_low,
-                    canny_high=processing_config.canny_high,
-                    min_object_size=processing_config.min_object_size,
-                    sigma=processing_config.sigma,
-                    adaptive_threshold=True,
-                    yl_fitted_points=self.yl_fitted_points,
-                )
+            with self.lock:
+                self.current_frame = frame
 
-                # Extract results
-                radius = frame_results.get("apex_radius")
-                edge_points = frame_results.get("edge_points")
-                apex_point = frame_results.get("apex_point")
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                if (
-                    edge_points is not None
-                    and radius is not None
-                    and apex_point is not None
-                ):
-                    initial_params = {
-                        "apex_radius": radius,
-                        "apex_x": apex_point[0],
-                        "apex_y": apex_point[1],
-                        "rotation": 0,
-                        "bond_number": processing_config.bond_number,
-                        "delta_rho": processing_config.delta_rho,
-                        "calibration_factor": processing_config.calibration_factor,
-                    }
-
-                    fitter = YoungLaplaceFitter(edge_points, initial_params)
-                    fitter.fit_profile()
-
-                    self.yl_fitted_points = fitter.get_fitted_profile()
-
-                    younglaplace_results = fitter.get_results()
-
-                    if younglaplace_results["is_converged"]:
-                        print(
-                            f"Live Image: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
-                        )
-                        print(
-                            f"    Bond Number: {younglaplace_results['bond_number']:.4f}"
-                        )
-                        print(
-                            f"    Surface Tension: {younglaplace_results['surface_tension']:.4f} N/m"
-                        )
-                        print(
-                            f"    Calculated Volume: {younglaplace_results['volume']:.4f} m^3"
-                        )
-
-            else:
-                display_frame = crop_image(
-                    frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                display_rgb = crop_image(
+                    frame_rgb,
                     crop_params=processing_config,
                 )
 
-                # Convert to Pillow image
-                if self.is_playing:
-                    display_rgb = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
-                else:
-                    display_rgb = display_frame
+                # If we have points from the background thread, draw them
+                if self.is_playing and self.yl_fitted_points is not None:
+                    cv2.polylines(
+                        display_rgb,
+                        [self.yl_fitted_points],
+                        isClosed=False,
+                        color=(0, 255, 0),
+                        thickness=2,
+                    )
 
                 # Get panel dimensions
                 panel_width = self.frame.image_panel.winfo_width()
@@ -601,9 +645,6 @@ class App(ctk.CTk):
                 if ctk_image:
                     self.frame.image_label.configure(image=ctk_image, text="")
                     self.frame.image_label.image = ctk_image
-
-            # else:
-            # print("Warning: missed frame from camera feed")
 
         # Schedule the next update (approx 30 FPS -> 33ms)
         self.after(30, self.update_camera_feed)
