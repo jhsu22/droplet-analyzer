@@ -3,6 +3,9 @@ Popup Windows for Pendant Droplet Analyzer
 Contains all popup dialog classes with consistent styling
 """
 
+import csv
+import os
+from datetime import datetime
 from tkinter import filedialog
 
 import customtkinter as ctk
@@ -897,19 +900,65 @@ class ExportPopup(BasePopup):
             self.dir_entry.insert(0, directory)
 
     def export_data(self):
-        """Export data (to be implemented)"""
+        """Export data to the selected format"""
         format_type = self.format_combo.get()
+
+        # Get directory from entry or use default
         output_dir = self.dir_entry.get() or str(PathConfig.OUTPUT_PATH)
-        start_frame = int(self.start_frame_slider.get())
-        end_frame = int(self.end_frame_slider.get())
-        include_plots = self.include_plots_var.get()
-        include_binary = self.include_binary_var.get()
 
-        print(f"Exporting {format_type} to {output_dir}")
-        print(f"Frame range: {start_frame}-{end_frame}")
-        print(f"Include plots: {include_plots}, Include binary: {include_binary}")
+        # Create a filename with the current timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"droplet_analysis_{timestamp}"
 
-        # TODO: Implement export logic
+        # Get the data from the main application
+        data = self.parent.analysis_results
+
+        if not data:
+            print("No data to export. Run analysis first.")
+            self.destroy()
+            return
+
+        # Ensure output directory exists
+        os.makedirs(output_dir, exist_ok=True)
+        full_path = os.path.join(output_dir, filename)
+
+        if format_type == "CSV":
+            full_path += ".csv"
+            try:
+                headers = [
+                    "frame_number",
+                    "num_edge_points",
+                    "bond_number",
+                    "surface_tension",
+                    "volume",
+                    "apex_radius_physical",
+                    "fit_iterations",
+                ]
+
+                with open(full_path, "w", newline="") as csvfile:
+                    writer = csv.DictWriter(
+                        csvfile, fieldnames=headers, extrasaction="ignore", restval=""
+                    )
+                    writer.writeheader()
+                    writer.writerows(data)
+
+                print(f"Successfully exported data to: {full_path}")
+
+            except Exception as e:
+                print(f"Error exporting CSV: {e}")
+
+        elif format_type == "JSON":
+            import json
+
+            full_path += ".json"
+            try:
+                with open(full_path, "w") as jsonfile:
+                    json.dump(data, jsonfile, indent=4)
+                print(f"Successfully exported data to: {full_path}")
+            except Exception as e:
+                print(f"Error exporting JSON: {e}")
+
+        # Close the popup
         self.destroy()
 
 

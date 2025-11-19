@@ -565,6 +565,32 @@ class App(ctk.CTk):
 
                 final_image_np = frame_results.get("cropped_image_color")
 
+                frame_data = {
+                    "frame_number": current_frame,
+                    "num_edge_points": frame_results.get("num_edge_points"),
+                }
+
+                if younglaplace_results and younglaplace_results["is_converged"]:
+                    frame_data.update(
+                        {
+                            "bond_number": younglaplace_results["bond_number"],
+                            "surface_tension": younglaplace_results["surface_tension"],
+                            "volume": younglaplace_results["volume"],
+                            "apex_radius": younglaplace_results["apex_radius_physical"],
+                        }
+                    )
+                else:
+                    frame_data.update(
+                        {
+                            "bond_number": None,
+                            "surface_tension": None,
+                            "volume": None,
+                            "apex_radius": None,
+                        }
+                    )
+
+                self.analysis_results.append(frame_data)
+
                 if final_image_np is not None:
                     final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
 

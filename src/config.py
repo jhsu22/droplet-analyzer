@@ -244,7 +244,7 @@ class PathConfig:
     BASE_PATH = Path(__file__).parent.parent
     ASSETS_PATH = BASE_PATH / "assets"
     OUTPUT_PATH = BASE_PATH / "output"
-    TEST_DATA_PATH = BASE_PATH / "test_data"
+    TEST_DATA_PATH = BASE_PATH / "sample_videos"
 
     # Asset subdirectories
     FONTS_PATH = ASSETS_PATH / "fonts"
