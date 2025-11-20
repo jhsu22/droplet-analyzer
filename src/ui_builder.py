@@ -4,6 +4,7 @@ Contains all UI building logic and widgets
 """
 
 import sys
+from asyncio.unix_events import SelectorEventLoop
 from io import StringIO
 
 import customtkinter as ctk
@@ -702,7 +703,11 @@ class UIFrame(ctk.CTkFrame):
         )
         fit_title.place(x=UIConfig.PADDING_MEDIUM, y=0)
 
-        self.fit_text = ctk.CTkTextbox(fit_panel, fg_color=UIConfig.COLOR_BG_SECONDARY)
+        self.fit_text = ctk.CTkTextbox(
+            fit_panel,
+            font=(self.master.custom_font, 16),
+            fg_color=UIConfig.COLOR_BG_SECONDARY,
+        )
         self.fit_text.pack(
             fill="both",
             expand=True,

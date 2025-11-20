@@ -10,6 +10,10 @@ from tkinter import filedialog
 
 import customtkinter as ctk
 import cv2
+import matplotlib.figure as fig
+import matplotlib.pyplot as plt
+import pandas as pd
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from PIL import Image, ImageTk
 
 from config import PathConfig, PopupConfig, ProcessingConfig, UIConfig
@@ -575,78 +579,120 @@ class ViewDataPopup(BasePopup):
             PopupConfig.VIEWDATA_POPUP_HEIGHT,
         )
 
-        # Search/filter section
-        search_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        search_frame.pack(fill="x", pady=(0, UIConfig.PADDING_MEDIUM))
+        # Configure grid weights to allow plot to expand
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        self.content_frame.grid_rowconfigure(0, weight=1)
 
-        ctk.CTkLabel(
-            search_frame,
-            text="Search:",
-            font=self.parent.custom_font,
-            text_color=UIConfig.COLOR_TEXT_PRIMARY,
-        ).pack(side="left", padx=(0, UIConfig.PADDING_SMALL))
+        self.plot_data()
 
-        self.search_entry = ctk.CTkEntry(
-            search_frame,
-            font=self.parent.custom_font,
-            placeholder_text="Filter by frame number...",
-        )
-        self.search_entry.pack(
-            side="left", fill="x", expand=True, padx=UIConfig.PADDING_SMALL
-        )
+    def plot_data(self):
+        # Get the data from the main application
+        data = self.parent.analysis_results
 
-        # Data display (scrollable)
-        self.data_frame = ctk.CTkScrollableFrame(
-            self.content_frame, fg_color=UIConfig.COLOR_BG_SECONDARY
-        )
-        self.data_frame.pack(fill="both", expand=True, pady=UIConfig.PADDING_SMALL)
+        if not data:
+            print("No data to plot. Run analysis first.")
+            self.destroy()
+            return
 
-        # Header row
-        header_frame = ctk.CTkFrame(self.data_frame, fg_color=UIConfig.COLOR_BORDER)
-        header_frame.pack(fill="x", pady=(0, UIConfig.PADDING_SMALL))
+        # 1. Load Data
+        df = pd.DataFrame(data)
 
-        headers = ["Frame #", "Edge Points", "Status", "Timestamp"]
-        for header in headers:
+        required_cols = ["frame_number", "surface_tension", "bond_number"]
+        if not all(col in df.columns for col in required_cols):
             ctk.CTkLabel(
-                header_frame,
-                text=header,
-                font=self.parent.custom_font_bold,
-                text_color=UIConfig.COLOR_TEXT_ACCENT,
-                width=150,
-            ).pack(
-                side="left", padx=UIConfig.PADDING_SMALL, pady=UIConfig.PADDING_SMALL
-            )
+                self.content_frame,
+                text="No data available.\nPlease run analysis first.",
+            ).pack(pady=20)
+            return
 
-        # Placeholder data
-        ctk.CTkLabel(
-            self.data_frame,
-            text="No data available. Run analysis first.",
-            font=self.parent.custom_font,
-            text_color=UIConfig.COLOR_TEXT_PRIMARY,
-        ).pack(pady=UIConfig.PADDING_LARGE)
+        # 2. Filter Data
+        # Ensure that it is working with numeric types
+        df["surface_tension"] = pd.to_numeric(df["surface_tension"], errors="coerce")
+        df["bond_number"] = pd.to_numeric(df["bond_number"], errors="coerce")
 
-        # Button frame
-        button_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        button_frame.pack(fill="x", pady=(UIConfig.PADDING_MEDIUM, 0))
+        # Remove rows where the fit obviously failed
+        df = df.dropna(subset=["surface_tension", "bond_number"])
+        df = df[(df["surface_tension"] > 0) & (df["surface_tension"] < 0.2)]
 
-        ctk.CTkButton(
-            button_frame,
-            text="Refresh",
-            font=self.parent.custom_font,
-            command=self.refresh_data,
-        ).pack(side="left", padx=UIConfig.PADDING_SMALL)
+        if df.empty:
+            ctk.CTkLabel(
+                self.content_frame, text="No valid data points found after filtering."
+            ).pack(pady=20)
+            return
 
-        ctk.CTkButton(
-            button_frame,
-            text="Close",
-            font=self.parent.custom_font,
-            command=self.destroy,
-        ).pack(side="right", padx=UIConfig.PADDING_SMALL)
+        # 3. Calculate Moving Median
+        df["tension_smooth"] = (
+            df["surface_tension"].rolling(window=50, center=True).median()
+        )
+        df["bond_smooth"] = df["bond_number"].rolling(window=50, center=True).median()
 
-    def refresh_data(self):
-        """Refresh data display (to be implemented)"""
-        print("Refreshing data...")
-        # TODO: Implement data loading and display
+        # 4. Create the Plot with Twin Axes
+        fig = plt.Figure(figsize=(10, 6), dpi=100)
+        ax1 = fig.add_subplot(111)
+
+        # --- Plot Surface Tension (Left Axis) ---
+        color = "tab:blue"
+        ax1.set_xlabel("Frame Number")
+        ax1.set_ylabel("Surface Tension (N/m)", color=color, fontsize=12)
+        ax1.plot(
+            df["frame_number"],
+            df["surface_tension"],
+            ".",
+            color=color,
+            alpha=0.3,
+            label="Raw Data",
+        )
+        ax1.plot(
+            df["frame_number"],
+            df["tension_smooth"],
+            "-",
+            color=color,
+            linewidth=2,
+            label="Moving Median",
+        )
+        ax1.tick_params(axis="y", labelcolor=color)
+
+        ax1.axhline(
+            y=0.072,
+            color="red",
+            linestyle=":",
+            alpha=0.5,
+            label="Water Reference (0.072)",
+        )
+
+        ax1.legend(loc="upper left")
+
+        # --- Plot Bond Number (Right Axis) ---
+        ax2 = ax1.twinx()
+        color = "tab:green"
+        ax2.set_ylabel("Bond Number", color=color, fontsize=12)
+        ax2.plot(
+            df["frame_number"],
+            df["bond_smooth"],
+            "-",
+            color=color,
+            linewidth=2,
+            linestyle="dashed",
+            label="Bond Number",
+        )
+        ax2.tick_params(axis="y", labelcolor=color)
+
+        ax2.legend(loc="upper right")
+
+        # --- Annotations ---
+        ax1.set_title("Surface Tension vs. Bond Number", fontsize=14)
+        ax1.grid(True, alpha=0.3)
+        fig.tight_layout()
+
+        # 5. Embed the Plot in the CustomTkinter Window
+        canvas = FigureCanvasTkAgg(fig, master=self.content_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        # Optional: Add Matplotlib Toolbar
+        toolbar = NavigationToolbar2Tk(canvas, self.content_frame)
+        toolbar.update()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
 
 
 class ExportPopup(BasePopup):

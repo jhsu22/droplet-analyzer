@@ -139,6 +139,7 @@ class CurrentProcessingConfig:
         self.syringe_width_mm = ProcessingConfig.SYRINGE_WIDTH_MM
         self.calibration_factor = ProcessingConfig.CALIBRATION_FACTOR
         self.camera_index = ProcessingConfig.DEFAULT_CAMERA_INDEX
+        self.processing_complete = False
 
 
 # Create a single, importable instance of the live config
@@ -297,8 +298,8 @@ class PopupConfig:
     VIDEO_POPUP_WIDTH = 600
     VIDEO_POPUP_HEIGHT = 400
 
-    VIEWDATA_POPUP_WIDTH = 800
-    VIEWDATA_POPUP_HEIGHT = 600
+    VIEWDATA_POPUP_WIDTH = 1000
+    VIEWDATA_POPUP_HEIGHT = 800
 
     EXPORT_POPUP_WIDTH = 500
     EXPORT_POPUP_HEIGHT = 450
@@ -357,7 +358,7 @@ MOVE (integer value): moves the frame a certain number of steps. positive is up,
 LED (0-100): controls LED brightness
 STATUS: checks serial status
 
-Version: 0.4.0
+Version: 1.0.0
 """
 
 

@@ -204,8 +204,8 @@ class App(ctk.CTk):
         text = (
             f"\nBond Number:      {results['bond_number']:.4f}\n"
             f"Surface Tension:  {results['surface_tension'] * 1000:.4f} mN/m\n"
-            f"Volume:           {results['volume'] * 1e9:.4e} mL\n"
-            f"Apex Radius:      {results['apex_radius_physical']:.4e} mm\n"
+            f"Volume:           {results['volume'] * 1e9:.4f} mL\n"
+            f"Apex Radius:      {results['apex_radius_physical']:.4f} mm\n"
         )
 
         # Update the UI element
@@ -274,6 +274,7 @@ class App(ctk.CTk):
         if self.is_playing:
             self.is_playing = False
             self.frame.start_analysis_button.configure(text="Start Analysis")
+            self.processing_complete = True
             print("Analysis stopped.")
             return
 
@@ -282,6 +283,7 @@ class App(ctk.CTk):
             return
 
         self.frame.start_analysis_button.configure(text="Stop Analysis")
+        self.processing_complete = False
 
         print("Starting analysis.")
         # Create list to store results
@@ -359,21 +361,6 @@ class App(ctk.CTk):
                     younglaplace_results = fitter.get_results()
 
                     self.after(0, self.update_fit_results, younglaplace_results)
-
-                    # Output calculation results
-                    if younglaplace_results["is_converged"]:
-                        print(
-                            f"Live Image: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
-                        )
-                        print(
-                            f"    Bond Number: {younglaplace_results['bond_number']:.4f}"
-                        )
-                        print(
-                            f"    Surface Tension: {younglaplace_results['surface_tension']:.4f} N/m"
-                        )
-                        print(
-                            f"    Calculated Volume: {younglaplace_results['volume']:.4f} m^3"
-                        )
 
             except Exception as e:
                 print(f"Analysis error: {e}")
@@ -625,6 +612,7 @@ class App(ctk.CTk):
             print("Analysis complete.")
             print(f"Processsed {len(self.analysis_results)} frames.")
             self.is_playing = False
+            self.processing_complete = True
 
             self.frame.start_analysis_button.configure(text="Start Analysis")
 
