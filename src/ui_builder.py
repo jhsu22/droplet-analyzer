@@ -705,7 +705,7 @@ class UIFrame(ctk.CTkFrame):
 
         self.fit_text = ctk.CTkTextbox(
             fit_panel,
-            font=(self.master.custom_font, 16),
+            font=(UIConfig.FONT_FAMILY, 16),
             fg_color=UIConfig.COLOR_BG_SECONDARY,
         )
         self.fit_text.pack(

@@ -200,12 +200,13 @@ class App(ctk.CTk):
         if not results:
             return
 
-        # Format the output string
+        # Format the output string with aligned columns
         text = (
-            f"\nBond Number:      {results['bond_number']:.4f}\n"
-            f"Surface Tension:  {results['surface_tension'] * 1000:.4f} mN/m\n"
-            f"Volume:           {results['volume'] * 1e9:.4f} mL\n"
-            f"Apex Radius:      {results['apex_radius_physical']:.4f} mm\n"
+            f"\n"
+            f"{'Bond Number':<16} : {results['bond_number']:>8.4f}\n"
+            f"{'Surface Tension':<16} : {results['surface_tension'] * 1000:>8.4f} mN/m\n"
+            f"{'Volume':<16} : {results['volume'] * 1e9:>8.4f} mL\n"
+            f"{'Apex Radius':<16} : {results['apex_radius_physical']:>8.4f} mm\n"
         )
 
         # Update the UI element
