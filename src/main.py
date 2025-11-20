@@ -271,9 +271,17 @@ class App(ctk.CTk):
         print("Calibration complete. Ready to start analysis.")
 
     def start_analysis(self):
+        if self.is_playing:
+            self.is_playing = False
+            self.frame.start_analysis_button.configure(text="Start Analysis")
+            print("Analysis stopped.")
+            return
+
         if not self.is_calibrated:
             print("Run calibration before analysis.")
             return
+
+        self.frame.start_analysis_button.configure(text="Stop Analysis")
 
         print("Starting analysis.")
         # Create list to store results
@@ -288,6 +296,7 @@ class App(ctk.CTk):
             )
             self.analysis_thread.start()
             print("Live analysis started in background thread.")
+            return
 
         # Start processing loop for video analysis
         self.frame.video_slider.set(0)
@@ -617,6 +626,8 @@ class App(ctk.CTk):
             print(f"Processsed {len(self.analysis_results)} frames.")
             self.is_playing = False
 
+            self.frame.start_analysis_button.configure(text="Start Analysis")
+
     # === Live Video Logic === #
     def load_camera(self, index):
         # Initialize live camera and start feed
@@ -730,17 +741,24 @@ class App(ctk.CTk):
 
     def check_serial_queue(self):
         try:
-            message = self.serial_manager.read_line(timeout=0.1)
+            if (
+                self.serial_manager and self.serial_manager.is_running
+            ):  # Check if connected
+                message = self.serial_manager.read_line(timeout=0.1)
 
-            if message:
-                # Add the message to the output box
-                self.frame.output_box.configure(state="normal")
-                self.frame.output_box.insert("end", message + "\n")
-                self.frame.output_box.configure(state="disabled")
+                if message:
+                    # Add the message to the output box
+                    self.frame.output_box.configure(state="normal")
+                    self.frame.output_box.insert("end", message + "\n")
+                    self.frame.output_box.configure(state="disabled")
+
+        except Exception as e:
+            # If serial fails, print once and stop checking
+            print(f"Serial read error (stopping queue): {e}")
+            return  # Stop the recursive loop
 
         # Loop every 100ms
-        finally:
-            self.after(100, self.check_serial_queue)
+        self.after(100, self.check_serial_queue)
 
 
 def main():

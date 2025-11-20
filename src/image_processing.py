@@ -7,6 +7,9 @@ Takes a video file and performs canny edge detection on every frame to get the e
 import os
 
 import cv2
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import skimage as ski
