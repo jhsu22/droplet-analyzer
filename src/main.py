@@ -2,13 +2,15 @@
 Pendant Droplet Analyzer - Main Application
 """
 
+import copy
 import os
 import sys
+import threading
 
 import customtkinter as ctk
 from serial import Serial
 
-if sys.platform != "darwin":
+if sys.platform == "win32":
     from tkextrafont import Font
 
 import cv2
@@ -71,6 +73,7 @@ class App(ctk.CTk):
         self.video_capture = None
         self.is_playing = False
         self.is_calibrated = False
+        self.is_live = False
         self.num_frames = 0
 
         self.debug_popup = None
@@ -83,6 +86,12 @@ class App(ctk.CTk):
         self._configure_window()
         self._create_ui()
 
+        # Threading variables
+        self.current_frame = None  # Latest frame from camera
+        self.analysis_results = None  # Latest analysis results
+        self.analysis_thread = None  # Thread object for analysis
+        self.lock = threading.Lock()
+
         # Create textbox widget
         output_textbox = self.frame.output_text
         redirector = TextboxRedirector(output_textbox)
@@ -92,6 +101,7 @@ class App(ctk.CTk):
 
         print("---Application Started ---")
 
+    # === Initialization === #
     def _set_output_paths(self):
         # Set base paths
         self.VIDEO_PATH = PathConfig.DEFAULT_VIDEO_FILE
@@ -117,7 +127,7 @@ class App(ctk.CTk):
     def _load_fonts(self):
         # Load custom fonts
         try:
-            if sys.platform != "darwin":
+            if sys.platform == "win32":
                 Font(file=self.FONT_PATH, family=UIConfig.FONT_FAMILY)
 
             self.custom_font = ctk.CTkFont(
@@ -136,6 +146,14 @@ class App(ctk.CTk):
                 size=UIConfig.FONT_SIZE_NORMAL, weight="bold"
             )
 
+    def _load_ports(self):
+        # Load available serial ports
+        ports, descriptions = list_ports()
+
+        serial_config.ports = ports
+        serial_config.descriptions = descriptions
+
+    # === UI Logic === #
     def _configure_window(self):
         # Configure main window properties
         self.title(UIConfig.WINDOW_TITLE)
@@ -177,13 +195,178 @@ class App(ctk.CTk):
             size=(new_width, new_height),
         )
 
-    def _load_ports(self):
-        # Load available serial ports
-        ports, descriptions = list_ports()
+    def update_fit_results(self, results):
+        # Updates the results panel with calculated data
+        if not results:
+            return
 
-        serial_config.ports = ports
-        serial_config.descriptions = descriptions
+        # Format the output string with aligned columns
+        text = (
+            f"\n"
+            f"{'Bond Number':<16} : {results['bond_number']:>8.4f}\n"
+            f"{'Surface Tension':<16} : {results['surface_tension'] * 1000:>8.4f} mN/m\n"
+            f"{'Volume':<16} : {results['volume'] * 1e9:>8.4f} mL\n"
+            f"{'Apex Radius':<16} : {results['apex_radius_physical']:>8.4f} mm\n"
+        )
 
+        # Update the UI element
+        try:
+            self.frame.fit_text.configure(state="normal")
+            self.frame.fit_text.delete("0.0", "end")
+            self.frame.fit_text.insert("0.0", text)
+            self.frame.fit_text.configure(state="disabled")
+
+        except Exception as e:
+            print(f"Error updating UI: {e}")
+
+    # === Analysis Logic === #
+    def start_calibration(self):
+        current_frame = int(self.frame.video_slider.get())
+        print(f"Starting calibration on frame {current_frame}")
+
+        calibration_results = calibrate(
+            starting_frame=current_frame,
+            crop_params=processing_config,
+            video=self.video_capture,
+            OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH,
+            OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH,
+        )
+
+        final_image_np = calibration_results.get("cropped_image_color")
+
+        if final_image_np is not None:
+            final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
+
+            panel_width = self.frame.image_panel.winfo_width()
+            panel_height = self.frame.image_panel.winfo_height()
+
+            ctk_image = self._create_ctk_image(
+                final_image_rgb, panel_width, panel_height
+            )
+
+            if ctk_image:
+                self.frame.image_label.configure(image=ctk_image, text="")
+                self.frame.image_label.image = ctk_image
+
+        panel_width = PopupConfig.DEBUG_POPUP_WIDTH // 3
+        panel_height = PopupConfig.DEBUG_POPUP_HEIGHT - 150
+
+        images_for_popup = {
+            "median": self._create_ctk_image(
+                calibration_results.get("filtered_image"), panel_width, panel_height
+            ),
+            "gaussian": self._create_ctk_image(
+                calibration_results.get("gaussian_image"), panel_width, panel_height
+            ),
+            "final": self._create_ctk_image(
+                calibration_results.get("binary_edge_image"), panel_width, panel_height
+            ),
+        }
+
+        CalibrationPopup(self, images=images_for_popup)
+
+        calibration_radius = calibration_results.get("calibration_radius", 0)
+
+        self.is_calibrated = True
+        self.frame.start_analysis_button.configure(state="normal")
+        print("Calibration complete. Ready to start analysis.")
+
+    def start_analysis(self):
+        if self.is_playing:
+            self.is_playing = False
+            self.frame.start_analysis_button.configure(text="Start Analysis")
+            self.processing_complete = True
+            print("Analysis stopped.")
+            return
+
+        if not self.is_calibrated:
+            print("Run calibration before analysis.")
+            return
+
+        self.frame.start_analysis_button.configure(text="Stop Analysis")
+        self.processing_complete = False
+
+        print("Starting analysis.")
+        # Create list to store results
+        self.analysis_results = []
+        self.is_playing = True
+        self.yl_fitted_points = None
+
+        # Start processing loop for image analysis
+        if self.is_live:
+            self.analysis_thread = threading.Thread(
+                target=self.analysis_worker, daemon=True
+            )
+            self.analysis_thread.start()
+            print("Live analysis started in background thread.")
+            return
+
+        # Start processing loop for video analysis
+        self.frame.video_slider.set(0)
+        self.update_video()
+
+    def analysis_worker(self):
+        # Background thread that processes the latest available frame
+        while self.is_playing and self.is_live:
+            # Take latest frame
+            frame_to_process = None
+
+            with self.lock:
+                if self.current_frame is not None:
+                    frame_to_process = self.current_frame.copy()
+
+                if frame_to_process is None:
+                    self.after(10)
+                    continue
+
+            # Run analysis code
+            try:
+                frame_results = process_frame_edge(
+                    frame_to_process,
+                    crop_params=processing_config,
+                    filter_size=processing_config.filter_size,
+                    canny_low=processing_config.canny_low,
+                    canny_high=processing_config.canny_high,
+                    min_object_size=processing_config.min_object_size,
+                    sigma=processing_config.sigma,
+                    adaptive_threshold=True,
+                    yl_fitted_points=self.yl_fitted_points,  # Use fitted points from previous frame
+                )
+
+                radius = frame_results.get("apex_radius")
+                edge_points = frame_results.get("edge_points")
+                apex_point = frame_results.get("apex_point")
+
+                if (
+                    edge_points is not None
+                    and radius is not None
+                    and apex_point is not None
+                ):
+                    initial_params = {
+                        "apex_radius": radius,
+                        "apex_x": apex_point[0],
+                        "apex_y": apex_point[1],
+                        "rotation": 0,
+                        "bond_number": processing_config.bond_number,
+                        "delta_rho": processing_config.delta_rho,
+                        "calibration_factor": processing_config.calibration_factor,
+                    }
+
+                    # Get Young-Laplace fit profile
+                    fitter = YoungLaplaceFitter(edge_points, initial_params)
+                    fitter.fit_profile()
+
+                    # Get fit points
+                    self.yl_fitted_points = fitter.get_fitted_profile()
+
+                    younglaplace_results = fitter.get_results()
+
+                    self.after(0, self.update_fit_results, younglaplace_results)
+
+            except Exception as e:
+                print(f"Analysis error: {e}")
+
+    # === Video File Logic === #
     def load_video(self, video_path):
         # Load video, update UI controls, and show first frame
         if self.video_capture:
@@ -309,73 +492,6 @@ class App(ctk.CTk):
 
         self.show_frame(current_frame)
 
-    def start_calibration(self):
-        current_frame = int(self.frame.video_slider.get())
-        print(f"Starting calibration on frame {current_frame}")
-
-        calibration_results = calibrate(
-            starting_frame=current_frame,
-            crop_params=processing_config,
-            video=self.video_capture,
-            OUTPUT_DATA_PATH=self.OUTPUT_DATA_PATH,
-            OUTPUT_IMG_PATH=self.OUTPUT_IMG_PATH,
-        )
-
-        final_image_np = calibration_results.get("cropped_image_color")
-
-        if final_image_np is not None:
-            final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
-
-            panel_width = self.frame.image_panel.winfo_width()
-            panel_height = self.frame.image_panel.winfo_height()
-
-            ctk_image = self._create_ctk_image(
-                final_image_rgb, panel_width, panel_height
-            )
-
-            if ctk_image:
-                self.frame.image_label.configure(image=ctk_image, text="")
-                self.frame.image_label.image = ctk_image
-
-        panel_width = PopupConfig.DEBUG_POPUP_WIDTH // 3
-        panel_height = PopupConfig.DEBUG_POPUP_HEIGHT - 150
-
-        images_for_popup = {
-            "median": self._create_ctk_image(
-                calibration_results.get("filtered_image"), panel_width, panel_height
-            ),
-            "gaussian": self._create_ctk_image(
-                calibration_results.get("gaussian_image"), panel_width, panel_height
-            ),
-            "final": self._create_ctk_image(
-                calibration_results.get("binary_edge_image"), panel_width, panel_height
-            ),
-        }
-
-        CalibrationPopup(self, images=images_for_popup)
-
-        calibration_radius = calibration_results.get("calibration_radius", 0)
-
-        self.is_calibrated = True
-        self.frame.start_analysis_button.configure(state="normal")
-        print("Calibration complete. Ready to start analysis.")
-
-    def start_analysis(self):
-        if not self.is_calibrated:
-            print("Run calibration before analysis.")
-            return
-
-        print("Starting analysis.")
-        # Create list to store results
-        self.analysis_results = []
-        self.is_playing = True
-        self.yl_fitted_points = None  # Initialize for first frame
-
-        self.frame.video_slider.set(0)
-
-        # Start processing loop
-        self.update_video()
-
     def update_video(self):
         if not self.is_playing:
             return
@@ -426,18 +542,7 @@ class App(ctk.CTk):
                     self.yl_fitted_points = fitter.get_fitted_profile()
 
                     if younglaplace_results["is_converged"]:
-                        print(
-                            f"Frame {current_frame}: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
-                        )
-                        print(
-                            f"    Bond Number: {younglaplace_results['bond_number']:.4f}"
-                        )
-                        print(
-                            f"    Surface Tension: {younglaplace_results['surface_tension']:.4f} N/m"
-                        )
-                        print(
-                            f"    Calculated Volume: {younglaplace_results['volume']:.4f} m^3"
-                        )
+                        self.update_fit_results(younglaplace_results)
 
                 self.analysis_results.append(
                     {
@@ -449,10 +554,39 @@ class App(ctk.CTk):
                 if current_frame % 50 == 0:
                     if radius is not None:
                         print(f"Frame {current_frame}: Apex Radius = {radius:.2f}")
+                        print(
+                            f"Frame {current_frame}: Young-Laplace fit converged after {younglaplace_results['iterations']} iterations"
+                        )
                     else:
                         print(f"Frame {current_frame}: Apex fit failed.")
 
                 final_image_np = frame_results.get("cropped_image_color")
+
+                frame_data = {
+                    "frame_number": current_frame,
+                    "num_edge_points": frame_results.get("num_edge_points"),
+                }
+
+                if younglaplace_results and younglaplace_results["is_converged"]:
+                    frame_data.update(
+                        {
+                            "bond_number": younglaplace_results["bond_number"],
+                            "surface_tension": younglaplace_results["surface_tension"],
+                            "volume": younglaplace_results["volume"],
+                            "apex_radius": younglaplace_results["apex_radius_physical"],
+                        }
+                    )
+                else:
+                    frame_data.update(
+                        {
+                            "bond_number": None,
+                            "surface_tension": None,
+                            "volume": None,
+                            "apex_radius": None,
+                        }
+                    )
+
+                self.analysis_results.append(frame_data)
 
                 if final_image_np is not None:
                     final_image_rgb = cv2.cvtColor(final_image_np, cv2.COLOR_BGR2RGB)
@@ -468,18 +602,97 @@ class App(ctk.CTk):
                         self.frame.image_label.configure(image=ctk_image, text="")
                         self.frame.image_label.image = ctk_image
 
-            next_frame = current_frame + 1
-            self.frame.video_slider.set(next_frame)
-            self.frame.frame_number_label.configure(
-                text=f"Frame {next_frame}/{int(self.num_frames - 1)}"
-            )
+                next_frame = current_frame + 1
+                self.frame.video_slider.set(next_frame)
+                self.frame.frame_number_label.configure(
+                    text=f"Frame {next_frame}/{int(self.num_frames - 1)}"
+                )
 
-            self.after(15, self.update_video)
+                self.after(15, self.update_video)
         else:
             print("Analysis complete.")
             print(f"Processsed {len(self.analysis_results)} frames.")
             self.is_playing = False
+            self.processing_complete = True
 
+            self.frame.start_analysis_button.configure(text="Start Analysis")
+
+    # === Live Video Logic === #
+    def load_camera(self, index):
+        # Initialize live camera and start feed
+        if self.video_capture:
+            self.video_capture.release()
+
+        # Initialize camera
+        if sys.platform == "win32":
+            self.video_capture = cv2.VideoCapture(
+                index, cv2.CAP_DSHOW
+            )  # Use DirectShow on windows for better performance
+        else:
+            self.video_capture = cv2.VideoCapture(index)
+
+        if not self.video_capture.isOpened():
+            print("Error: Could not open camera")
+            self.video_capture = None
+            return
+
+        # Set state flags
+        self.is_live = True  # Live camera flag
+        self.is_playing = False  # Analysis flag
+        self.is_calibrated = False  # Calibration flag
+
+        self.frame.video_slider.configure(state="disabled")
+        self.frame.frame_number_label.configure(text="LIVE FEED")
+        self.frame.calibrate_button.configure(state="normal")
+        self.frame.start_analysis_button.configure(state="disabled")
+
+        self.update_camera_feed()
+
+    def update_camera_feed(self):
+        # Continuous loop for live camera feed
+        if not self.is_live or not self.video_capture:
+            return
+
+        ret, frame = self.video_capture.read()
+
+        if ret:
+            with self.lock:
+                self.current_frame = frame
+
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                display_rgb = crop_image(
+                    frame_rgb,
+                    crop_params=processing_config,
+                )
+
+                # If we have points from the background thread, draw them
+                if self.is_playing and self.yl_fitted_points is not None:
+                    cv2.polylines(
+                        display_rgb,
+                        [self.yl_fitted_points],
+                        isClosed=False,
+                        color=(0, 255, 0),
+                        thickness=5,
+                    )
+
+                # Get panel dimensions
+                panel_width = self.frame.image_panel.winfo_width()
+                panel_height = self.frame.image_panel.winfo_height()
+
+                # Create and set the image
+                ctk_image = self._create_ctk_image(
+                    display_rgb, panel_width, panel_height
+                )
+
+                if ctk_image:
+                    self.frame.image_label.configure(image=ctk_image, text="")
+                    self.frame.image_label.image = ctk_image
+
+        # Schedule the next update (approx 30 FPS -> 33ms)
+        self.after(30, self.update_camera_feed)
+
+    # === Serial Logic === #
     def connect_serial(self):
         # Get port and baud rate from UI widgets
         port = self.frame.port_entry.get()
@@ -517,17 +730,24 @@ class App(ctk.CTk):
 
     def check_serial_queue(self):
         try:
-            message = self.serial_manager.read_line(timeout=0.1)
+            if (
+                self.serial_manager and self.serial_manager.is_running
+            ):  # Check if connected
+                message = self.serial_manager.read_line(timeout=0.1)
 
-            if message:
-                # Add the message to the output box
-                self.frame.output_box.configure(state="normal")
-                self.frame.output_box.insert("end", message + "\n")
-                self.frame.output_box.configure(state="disabled")
+                if message:
+                    # Add the message to the output box
+                    self.frame.output_box.configure(state="normal")
+                    self.frame.output_box.insert("end", message + "\n")
+                    self.frame.output_box.configure(state="disabled")
+
+        except Exception as e:
+            # If serial fails, print once and stop checking
+            print(f"Serial read error (stopping queue): {e}")
+            return  # Stop the recursive loop
 
         # Loop every 100ms
-        finally:
-            self.after(100, self.check_serial_queue)
+        self.after(100, self.check_serial_queue)
 
 
 def main():

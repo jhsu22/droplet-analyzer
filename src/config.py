@@ -5,6 +5,8 @@ Contains all constants and default values used throughout the application
 
 from pathlib import Path
 
+import numpy as np
+
 
 class UIConfig:
     """UI-related configuration constants"""
@@ -62,10 +64,10 @@ class ProcessingConfig:
 
     # Default crop parameters (for 1920x1080 video)
     DEFAULT_CROP = {
-        "initial_x_crop": 445,
-        "initial_y_crop": 88,
-        "x_max": 1160,
-        "y_max": 932,
+        "initial_x_crop": 0,
+        "initial_y_crop": 0,
+        "x_max": 480,
+        "y_max": 480,
     }
 
     # Default Canny edge detection parameters
@@ -105,8 +107,14 @@ class ProcessingConfig:
     # Density difference
     DENSITY_DIFFERENCE = 1000
 
+    # Syringe width in mm
+    SYRINGE_WIDTH_MM = 0.718
+
     # Calibration factor
-    CALIBRATION_FACTOR = 1.0 / 10000
+    CALIBRATION_FACTOR = 0.000724 / 150
+
+    # Camera index
+    DEFAULT_CAMERA_INDEX = 0
 
 
 class CurrentProcessingConfig:
@@ -128,7 +136,10 @@ class CurrentProcessingConfig:
         self.clahe_tile_grid_size = ProcessingConfig.CLAHE_TILE_GRID_SIZE
         self.bond_number = ProcessingConfig.INITIAL_BOND_NUMBER
         self.delta_rho = ProcessingConfig.DENSITY_DIFFERENCE
+        self.syringe_width_mm = ProcessingConfig.SYRINGE_WIDTH_MM
         self.calibration_factor = ProcessingConfig.CALIBRATION_FACTOR
+        self.camera_index = ProcessingConfig.DEFAULT_CAMERA_INDEX
+        self.processing_complete = False
 
 
 # Create a single, importable instance of the live config
@@ -234,7 +245,7 @@ class PathConfig:
     BASE_PATH = Path(__file__).parent.parent
     ASSETS_PATH = BASE_PATH / "assets"
     OUTPUT_PATH = BASE_PATH / "output"
-    TEST_DATA_PATH = BASE_PATH / "test_data"
+    TEST_DATA_PATH = BASE_PATH / "sample_videos"
 
     # Asset subdirectories
     FONTS_PATH = ASSETS_PATH / "fonts"
@@ -287,8 +298,8 @@ class PopupConfig:
     VIDEO_POPUP_WIDTH = 600
     VIDEO_POPUP_HEIGHT = 400
 
-    VIEWDATA_POPUP_WIDTH = 800
-    VIEWDATA_POPUP_HEIGHT = 600
+    VIEWDATA_POPUP_WIDTH = 1000
+    VIEWDATA_POPUP_HEIGHT = 800
 
     EXPORT_POPUP_WIDTH = 500
     EXPORT_POPUP_HEIGHT = 450
@@ -347,7 +358,7 @@ MOVE (integer value): moves the frame a certain number of steps. positive is up,
 LED (0-100): controls LED brightness
 STATUS: checks serial status
 
-Version: 0.4.0
+Version: 1.0.0
 """
 
 
