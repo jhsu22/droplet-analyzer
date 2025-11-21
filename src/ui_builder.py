@@ -548,6 +548,7 @@ class UIFrame(ctk.CTkFrame):
             serial_inner,
             values=serial_config.ports,
             font=self.master.custom_font,
+            command=self.master.on_port_selected,
         )
         self.port_entry.set(SerialConfig.DEFAULT_PORT)
         self.port_entry.grid(

@@ -693,6 +693,19 @@ class App(ctk.CTk):
         self.after(30, self.update_camera_feed)
 
     # === Serial Logic === #
+    def get_device_description(self, port):
+        # Get the device description for a given port
+        if port in serial_config.ports:
+            port_index = serial_config.ports.index(port)
+            if port_index < len(serial_config.descriptions):
+                return serial_config.descriptions[port_index]
+        return SerialConfig.DEFAULT_DEVICE_NAME
+
+    def on_port_selected(self, selected_port):
+        # Callback when a port is selected from the dropdown
+        device_name = self.get_device_description(selected_port)
+        self.frame.connected_label.configure(text=device_name)
+
     def connect_serial(self):
         # Get port and baud rate from UI widgets
         port = self.frame.port_entry.get()
@@ -704,6 +717,12 @@ class App(ctk.CTk):
         self.serial_manager.connect()
 
         if self.serial_manager.is_running:
+            # Get device description and update config
+            device_name = self.get_device_description(port)
+            serial_config.device_name = device_name
+
+            # Update UI to show connected device
+            self.frame.connected_label.configure(text=device_name)
             self.frame.connection_status.configure(text=SerialConfig.STATUS_CONNECTED)
             self.frame.connection_status.configure(
                 text_color=UIConfig.COLOR_STATUS_CONNECTED
@@ -712,6 +731,9 @@ class App(ctk.CTk):
             self.check_serial_queue()
 
         else:
+            # Reset to default on connection failure
+            serial_config.device_name = SerialConfig.DEFAULT_DEVICE_NAME
+            self.frame.connected_label.configure(text=SerialConfig.DEFAULT_DEVICE_NAME)
             self.frame.connection_status.configure(text="Connection Failed")
             self.frame.connection_status.configure(
                 text_color=UIConfig.COLOR_STATUS_DISCONNECTED
