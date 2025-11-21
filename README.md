@@ -5,7 +5,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ## Project Overview
-**Droplet Analyzer** is a Python-based application developed as part of a **Senior Design Project at California State Polytechnic University, Pomona (Cal Poly Pomona)**.
+**Droplet Analyzer** is a Python-based application developed as part of a **Senior Design Project at California State Polytechnic University, Pomona**.
 
 This software provides a user-friendly interface for performing **Pendant Drop Tensiometry**, a method used to determine the surface tension of a liquid by analyzing the shape of a droplet hanging from a needle. By utilizing edge detection algorithms and iteratively fitting the **Young-Laplace equation** to the droplet's profile, the system calculates surface tension, volume, and the Bond number in real-time.
 
@@ -15,7 +15,7 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
 
 ---
 
-## 📸 Interface
+## nterface
 
 ![Main Interface](demo.gif)
 
