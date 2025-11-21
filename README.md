@@ -62,7 +62,10 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
     ```
 
 ### Hardware Setup (Arduino)
-1.  Connect your Arduino (Uno/Mega) with an **Adafruit Motor Shield**.
+
+**Note:** The software supports sending serial commands to any serial connected device, but code for an Arduino setup is included.
+
+1.  Connect your Arduino with an **Adafruit Motor Shield**.
 2.  Open `arduino_code.ino` in the Arduino IDE.
 3.  Install the required libraries via Library Manager:
     * `Adafruit Motor Shield V2 Library`
@@ -73,33 +76,6 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
     * **Stepper 2 (M3/M4):** Frame Movement
     * **Pin 9:** LED Backlight
     * **Pin A0:** Potentiometer (Manual LED control)
-
----
-
-## Usage Guide
-
-### 1. Connection
-* Launch the application: `python src/main.py`.
-* In the **Serial** panel (top right), select your Arduino port and Baud rate (9600).
-* Click **Connect**. You can now control the LED and motors.
-
-### 2. Calibration
-* **Note** The software needs to know the physical width of the needle/syringe to convert pixels to millimeters. This can be changed in the `config.py` file.
-* Load a video or start the camera.
-* Click **Crop**.
-* Adjust the crop area to focus on the droplet and a small amount of the needle tip.
-* Click **Calibrate**.
-* Inspect the final edge and tune parameters if needed.
-
-### 3. Analysis
-* **Start:** Click **Start Analysis**.
-* The software will overlay the fitted Young-Laplace profile (Magenta/Green line) and display the calculated Surface Tension in the "Fit Results" box.
-
-### 4. Export
-* Click **View Data** to see a table of results for every processed frame.
-* Click **Export** to save the data for external analysis.
-
----
 
 ## Project Structure
 
