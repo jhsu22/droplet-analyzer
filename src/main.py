@@ -205,7 +205,7 @@ class App(ctk.CTk):
             f"\n"
             f"{'Bond Number':<16} : {results['bond_number']:>8.4f}\n"
             f"{'Surface Tension':<16} : {results['surface_tension'] * 1000:>8.4f} mN/m\n"
-            f"{'Volume':<16} : {results['volume'] * 1e9:>8.4f} mL\n"
+            f"{'Volume':<16} : {results['volume']:>8.4f} mL\n"
             f"{'Apex Radius':<16} : {results['apex_radius_physical']:>8.4f} mm\n"
         )
 

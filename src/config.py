@@ -296,7 +296,7 @@ class PopupConfig:
 
     # Popup dimensions
     VIDEO_POPUP_WIDTH = 600
-    VIDEO_POPUP_HEIGHT = 400
+    VIDEO_POPUP_HEIGHT = 650
 
     VIEWDATA_POPUP_WIDTH = 1000
     VIEWDATA_POPUP_HEIGHT = 800
@@ -327,12 +327,12 @@ class PopupConfig:
     HELP_TEXT = """PENDANT DROPLET ANALYZER - HELP
 
 WORKFLOW
-1. Click 'Video' to load a video file
+1. Click 'Video' to load a video file or select a camera for live video
 2. Click 'Crop' and drag over the desired crop region
 3. Tune edge detection parameters on any test frame and check analysis with 'Calibrate' button
 4. Click 'Start Analysis' to process the entire video
 5. View results in the Output panel
-6. Export data using the 'Export' button
+6. Export data using the 'Export' button, or view data using the 'View Data' button
 
 PARAMETERS
 - Filter Size: Median filter kernel size (odd numbers, 1-25)
@@ -359,6 +359,7 @@ LED (0-100): controls LED brightness
 STATUS: checks serial status
 
 Version: 1.0.0
+github.com/jhsu22/droplet-analyzer
 """
 
 

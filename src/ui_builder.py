@@ -521,7 +521,7 @@ class UIFrame(ctk.CTkFrame):
             sticky="w",
         )
 
-        # Connection status (add python arduino integration)
+        # Connection status
         self.connection_status = ctk.CTkLabel(
             serial_inner,
             text=SerialConfig.STATUS_DISCONNECTED,

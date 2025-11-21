@@ -7,6 +7,7 @@ import csv
 import os
 from datetime import datetime
 from tkinter import filedialog
+from typing import Text
 
 import customtkinter as ctk
 import cv2
@@ -127,6 +128,7 @@ class VideoPopup(BasePopup):
 
         self.selected_video_path = None
         self.selected_camera_index = None
+        self.preview_update_id = None  # Track the after callback ID
 
         # Configure grid
         self.content_frame.grid_columnconfigure(1, weight=1)
@@ -250,11 +252,12 @@ class VideoPopup(BasePopup):
             values=camera_options,
             font=self.parent.custom_font,
             state="readonly" if self.available_cameras else "disabled",
+            command=self._on_camera_select,
         )
         if self.available_cameras:
             self.camera_combo.set(camera_options[0])
 
-        # Resolution selection
+        # Resolution Display
         self.resolution_label = ctk.CTkLabel(
             self.content_frame,
             text="Resolution:",
@@ -262,20 +265,14 @@ class VideoPopup(BasePopup):
             text_color=UIConfig.COLOR_TEXT_PRIMARY,
         )
 
-        self.resolution_combo = ctk.CTkComboBox(
+        self.resolution_value_label = ctk.CTkLabel(
             self.content_frame,
-            values=[
-                "Auto (Default)",
-                "640x480 (VGA)",
-                "1280x720 (HD)",
-                "1920x1080 (Full HD)",
-            ],
+            text="-",
             font=self.parent.custom_font,
-            state="readonly",
+            text_color=UIConfig.COLOR_TEXT_ACCENT,
         )
-        self.resolution_combo.set("Auto (Default)")
 
-        # FPS selection
+        # FPS Display
         self.fps_label = ctk.CTkLabel(
             self.content_frame,
             text="Frame Rate:",
@@ -283,13 +280,12 @@ class VideoPopup(BasePopup):
             text_color=UIConfig.COLOR_TEXT_PRIMARY,
         )
 
-        self.fps_combo = ctk.CTkComboBox(
+        self.fps_value_label = ctk.CTkLabel(
             self.content_frame,
-            values=["Auto (Default)", "15 FPS", "30 FPS", "60 FPS"],
+            text="-",
             font=self.parent.custom_font,
-            state="readonly",
+            text_color=UIConfig.COLOR_TEXT_ACCENT,
         )
-        self.fps_combo.set("Auto (Default)")
 
         # Test camera button and status frame
         self.test_frame = ctk.CTkFrame(
@@ -310,32 +306,19 @@ class VideoPopup(BasePopup):
         )
         self.test_button.pack(side="left", padx=UIConfig.PADDING_SMALL)
 
-        self.test_status_label = ctk.CTkLabel(
-            test_button_container,
-            text="Not tested",
+        # Camera preview
+        self.preview_label = ctk.CTkLabel(
+            self.test_frame,
+            text="Camera Preview",
             font=self.parent.custom_font,
             text_color=UIConfig.COLOR_TEXT_PRIMARY,
         )
-        self.test_status_label.pack(side="left", padx=UIConfig.PADDING_MEDIUM)
-
-        # Test results display
-        self.live_info_text = ctk.CTkTextbox(
-            self.test_frame,
-            font=self.parent.custom_font,
-            fg_color=UIConfig.COLOR_BG_SECONDARY,
-            wrap="word",
-            height=100,
-        )
-        self.live_info_text.pack(
+        self.preview_label.pack(
             fill="both",
             expand=True,
             padx=UIConfig.PADDING_SMALL,
             pady=UIConfig.PADDING_SMALL,
         )
-        self.live_info_text.insert(
-            "0.0", "Click 'Test Camera' to verify camera connection"
-        )
-        self.live_info_text.configure(state="disabled")
 
         # Button frame
         self.live_button_frame = ctk.CTkFrame(
@@ -359,6 +342,10 @@ class VideoPopup(BasePopup):
         )
         self.live_cancel_button.pack(side="right", padx=UIConfig.PADDING_SMALL)
 
+        # Trigger initial camera info update after all widgets are created
+        if self.available_cameras:
+            self._on_camera_select(camera_options[0])
+
     def _on_mode_switch(self):
         """Handle toggle between file and live mode"""
         if self.live_switch.get():
@@ -366,15 +353,41 @@ class VideoPopup(BasePopup):
         else:
             self._show_file_mode()
 
+    def _on_camera_select(self, choice):
+        """Updates resolution and FPS labels based on selected camera"""
+        try:
+            # Extract index from string "Camera N: Name"
+            index = int(choice.split(":")[0].replace("Camera ", ""))
+
+            # Probe the camera (use default backend for cross-platform compatibility)
+            temp_cap = cv2.VideoCapture(index)
+            if temp_cap.isOpened():
+                width = int(temp_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(temp_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                fps = temp_cap.get(cv2.CAP_PROP_FPS)
+
+                self.resolution_value_label.configure(text=f"{width}x{height}")
+                self.fps_value_label.configure(text=f"{fps:.2f}")
+
+                temp_cap.release()
+            else:
+                self.resolution_value_label.configure(text="Error")
+                self.fps_value_label.configure(text="Error")
+
+        except Exception as e:
+            print(f"Error probing camera: {e}")
+            self.resolution_value_label.configure(text="-")
+            self.fps_value_label.configure(text="-")
+
     def _show_file_mode(self):
         """Show file loading widgets, hide live camera widgets"""
         # Hide live mode widgets
         self.camera_label.grid_remove()
         self.camera_combo.grid_remove()
         self.resolution_label.grid_remove()
-        self.resolution_combo.grid_remove()
+        self.resolution_value_label.grid_remove()
         self.fps_label.grid_remove()
-        self.fps_combo.grid_remove()
+        self.fps_value_label.grid_remove()
         self.test_frame.grid_remove()
         self.live_button_frame.grid_remove()
 
@@ -443,6 +456,7 @@ class VideoPopup(BasePopup):
             padx=UIConfig.PADDING_SMALL,
             pady=UIConfig.PADDING_SMALL,
         )
+
         self.resolution_label.grid(
             row=2,
             column=0,
@@ -450,13 +464,14 @@ class VideoPopup(BasePopup):
             padx=UIConfig.PADDING_SMALL,
             pady=UIConfig.PADDING_SMALL,
         )
-        self.resolution_combo.grid(
+        self.resolution_value_label.grid(  # Changed
             row=2,
             column=1,
-            sticky="ew",
+            sticky="w",
             padx=UIConfig.PADDING_SMALL,
             pady=UIConfig.PADDING_SMALL,
         )
+
         self.fps_label.grid(
             row=3,
             column=0,
@@ -464,13 +479,14 @@ class VideoPopup(BasePopup):
             padx=UIConfig.PADDING_SMALL,
             pady=UIConfig.PADDING_SMALL,
         )
-        self.fps_combo.grid(
+        self.fps_value_label.grid(  # Changed
             row=3,
             column=1,
-            sticky="ew",
+            sticky="w",
             padx=UIConfig.PADDING_SMALL,
             pady=UIConfig.PADDING_SMALL,
         )
+
         self.test_frame.grid(
             row=4,
             column=0,
@@ -497,21 +513,40 @@ class VideoPopup(BasePopup):
             filetypes=filetypes,
         )
 
+        filename_truncated = os.path.basename(filename)
+
         if filename:
             self.selected_video_path = filename
             self.file_path_entry.delete(0, "end")
             self.file_path_entry.insert(0, filename)
             self.load_button.configure(state="normal")
 
+            cap = cv2.VideoCapture(filename)
+
+            if cap.isOpened():
+                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                duration = frame_count / fps
+
             # Update info display
             self.file_info_text.configure(state="normal")
             self.file_info_text.delete("0.0", "end")
-            # self.file_info_text.insert("0.0", f"File: {filename}\n\n")
-            self.file_info_text.insert("end", "TODO: Display video information")
+            self.file_info_text.insert(
+                "0.0",
+                f"File:     {filename_truncated}\n"
+                f"Frames:   {frame_count}\n"
+                f"Duration: {duration:.2f} seconds\n"
+                f"FPS:      {fps:.2f}",
+                "end",
+            )
             self.file_info_text.configure(state="disabled")
 
     def test_camera(self):
         """Test the selected camera and display information"""
+        if hasattr(self, "is_testing") and self.is_testing:
+            self.stop_camera_test()
+            return
+
         selected_camera = self.camera_combo.get()
 
         chosen_camera = None
@@ -521,23 +556,79 @@ class VideoPopup(BasePopup):
                 break
 
         if chosen_camera:
-            try:
-                cap = cv2.VideoCapture(chosen_camera["index"])
-                ret, frame = cap.read()
-                if ret:
-                    cv2.imshow("Camera test", frame)
-                    cv2.waitKey(3000)
-
-                    cap.release()
-
-            except Exception as e:
-                print(f"Error testing camera: {e}")
-
-            finally:
-                cv2.destroyWindow("Camera test")
+            self.test_cap = cv2.VideoCapture(chosen_camera["index"])
+            if self.test_cap.isOpened():
+                self.is_testing = True
+                self.test_button.configure(
+                    text="Stop Test", fg_color=UIConfig.COLOR_STATUS_DISCONNECTED
+                )
+                self.update_camera_preview()
+            else:
+                print(f"Failed to open camera {chosen_camera['index']}")
 
         else:
             print("No camera selected")
+
+    def stop_camera_test(self):
+        """Stop the camera test"""
+        # First, stop the testing flag to prevent new callbacks
+        self.is_testing = False
+
+        # Cancel any scheduled preview updates
+        if self.preview_update_id is not None:
+            self.after_cancel(self.preview_update_id)
+            self.preview_update_id = None
+
+        # Release the camera
+        if hasattr(self, "test_cap") and self.test_cap:
+            self.test_cap.release()
+            self.test_cap = None
+
+        # Reset the button
+        self.test_button.configure(
+            text="Test Camera", fg_color=UIConfig.COLOR_BG_PRIMARY
+        )
+
+        # Clear the image reference and reset the label
+        if hasattr(self.preview_label, "_current_image"):
+            self.preview_label._current_image = None
+        self.preview_label.configure(image="", text="Camera Preview")
+
+    def update_camera_preview(self):
+        """Update the camera preview"""
+        # Check if we should still be updating
+        if not hasattr(self, "is_testing") or not self.is_testing:
+            return
+
+        try:
+            # Check if the widget still exists
+            if not self.winfo_exists():
+                self.is_testing = False
+                return
+
+            ret, frame = self.test_cap.read()
+            if ret:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                image = Image.fromarray(frame_rgb)
+                ctk_image = ctk.CTkImage(
+                    light_image=image, dark_image=image, size=(320, 240)
+                )
+                # Store reference to prevent garbage collection
+                self.preview_label._current_image = ctk_image
+                self.preview_label.configure(image=ctk_image, text="")
+
+            # Schedule the next update only if still testing
+            if self.is_testing:
+                self.preview_update_id = self.after(15, self.update_camera_preview)
+        except Exception as e:
+            # Window might be closing, stop the preview
+            print(f"Preview update error: {e}")
+            self.is_testing = False
+            self.preview_update_id = None
+
+    def destroy(self):
+        self.stop_camera_test()
+        super().destroy()
 
     def load_video(self):
         """Load the selected video file"""
@@ -563,8 +654,6 @@ class VideoPopup(BasePopup):
         else:
             print("No valid camera selected,")
 
-        print(f"Resolution: {self.resolution_combo.get()}")
-        print(f"FPS: {self.fps_combo.get()}")
         self.destroy()
 
 

@@ -196,7 +196,7 @@ class YoungLaplaceFitter:
         surface_tension = self.calculate_surface_tension()
 
         # Calculate volume (mL)
-        volume_ml = self.calculate_volume() / 1000
+        volume_ml = self.calculate_volume() * 1e6
 
         # Convert apex radius from pixels to physical units (mm)
         apex_radius_mm = self.apex_radius * self.calibration_factor
@@ -206,7 +206,7 @@ class YoungLaplaceFitter:
             "volume": volume_ml,
             "bond_number": self.bond_number,
             "apex_radius_pixels": self.apex_radius,
-            "apex_radius_physical": apex_radius_mm,  # Now in Meters
+            "apex_radius_physical": apex_radius_mm,
             "apex_x": self.apex_x,
             "apex_y": self.apex_y,
             "rotation": self.rotation,
