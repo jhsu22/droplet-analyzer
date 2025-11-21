@@ -80,7 +80,7 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
 ## Project Structure
 
 ```text
-droplet-analyzer/
+opentensio/
 ├── arduino_code.ino          # Firmware for motor/LED control
 ├── requirements.txt          # Python dependencies
 ├── assets/                   # Fonts and themes
