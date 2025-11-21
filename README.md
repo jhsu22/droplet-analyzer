@@ -15,7 +15,7 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
 
 ---
 
-## nterface
+## Interface
 
 ![Main Interface](demo.gif)
 
