@@ -81,14 +81,15 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
 
 ```text
 droplet-analyzer/
-├── arduino_code.ino       # Firmware for motor/LED control
-├── requirements.txt       # Python dependencies
-├── assets/                # Fonts and themes
+├── arduino_code.ino          # Firmware for motor/LED control
+├── requirements.txt          # Python dependencies
+├── assets/                   # Fonts and themes
 ├── src/
-│   ├── main.py            # Application entry point & GUI loop
-│   ├── ui_builder.py      # CustomTkinter layout and widget definitions
-│   ├── image_processing.py# OpenCV pipeline & Canny logic
-│   ├── young_laplace.py   # Physics math & ODE solvers
-│   ├── serial_manager.py  # Threaded serial communication
-│   └── config.py          # Global constants and paths
+│   ├── main.py               # Application entry point & GUI loop
+│   ├── ui_builder.py         # CustomTkinter layout and widget definitions
+│   ├── popup_windows.py      # UI popup windows
+│   ├── image_processing.py   # OpenCV pipeline & Canny logic
+│   ├── young_laplace.py      # Physics math & ODE solvers
+│   ├── serial_manager.py     # Threaded serial communication
+│   └── config.py             # Global constants and paths
 └── README.md
