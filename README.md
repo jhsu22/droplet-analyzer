@@ -46,7 +46,7 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
 ## Installation
 
 ### Prerequisites
-* Python 3.8 or higher
+* Python 3.10 or higher
 * Arduino IDE (for flashing the microcontroller)
 
 ### Python Setup
