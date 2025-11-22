@@ -11,7 +11,7 @@ This software provides a user-friendly interface for performing **Pendant Drop T
 
 The project integrates computer vision (OpenCV) with hardware control (Arduino) to automate droplet dispensing and lighting.
 
-Because commercial pendant drop tensiometers are expensive and inaccessible, our droplet analyzer aims to be an accessible and easy way to perform pendant drop tensiometry at a highly accurate level. The edge detection is forgiving, and optimization allows for the software to detect a complete edge even given an inoptimal image.
+Because commercial pendant drop tensiometers are expensive and inaccessible, our droplet analyzer aims to be an accessible and easy way to perform pendant drop tensiometry at a highly accurate level. The edge detection is forgiving, and optimization allows for the software to detect a complete edge even given an inoptimal image. The processing is also optimized to run fast and allow for real time processing.
 
 ---
 
@@ -24,16 +24,16 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
 ## Key Features
 
 ### Software
-* **Dual Input Modes:** Analyze pre-recorded video files (`.mov`, `.mp4`) or stream directly from a USB camera or webcam.
-* **Computer Vision Pipeline:**
-    * **Canny Edge Detection:** Edge finding with adjustable thresholds.
+* **Input Modes:** Analyze pre-recorded video files (`.mov`, `.mp4`) or stream directly from a USB camera or webcam.
+* **Optimized Computer Vision Pipeline:**
+    * **Smart Edge Detection:** Forgiving edge detection that provides a good edge even when given an inoptimal image. Removes noise and double/false edges in processing.
     * **Morphological Filtering:** `bwareaopen` implementation to remove noise and artifacts.
-    * **Sub-pixel Precision:** Curve fitting to detect the droplet apex and curvature.
+    * **Curve Fitting Optimizations:** Polynomial fitting of the raw edge data's apex points to calculate an apex radius of curvature. Speeds up Young-Laplace fitting significantly, and allows for near real-time processing.
 * **Physics Engine:**
     * Solves the Young-Laplace differential equations using `scipy.integrate`.
     * Uses `scipy.optimize.least_squares` to fit theoretical profiles to the observed droplet.
     * Calculates **Surface Tension (mN/m)**, **Volume (mL)**, and **Apex Radius**.
-* **Modern GUI:** Built with `CustomTkinter`
+* **Organized and Readable GUI:** Built with `CustomTkinter`
 * **Data Plotting and Export:** Export edge coordinates and calculated results to CSV/Excel, or plot them in the app.
 
 ### Hardware Integration (Arduino)
@@ -45,14 +45,10 @@ Because commercial pendant drop tensiometers are expensive and inaccessible, our
 
 ## Installation
 
-### Prerequisites
-* Python 3.10 or higher
-* Arduino IDE (for flashing the microcontroller)
-
 ### Python Setup
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/jhsu22/droplet-analyzer.git](https://github.com/jhsu22/droplet-analyzer.git)
+    git clone https://github.com/jhsu22/opentensio.git
     cd droplet-analyzer
     ```
 
