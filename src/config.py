@@ -324,7 +324,9 @@ class PopupConfig:
     SETTINGS_TABS = ["Processing", "UI Settings", "File Paths"]
 
     # Help text content
-    HELP_TEXT = """PENDANT DROPLET ANALYZER - HELP
+    HELP_TEXT = """OpenTensio v1.0.1-diamond
+=============================
+github.com/jhsu22/opentensio
 
 WORKFLOW
 1. Click 'Video' to load a video file or select a camera for live video
@@ -357,9 +359,6 @@ DISPENSE (positive volume in mL): dispenses a certain volume of liquid from the 
 MOVE (integer value): moves the frame a certain number of steps. positive is up, negative is down
 LED (0-100): controls LED brightness
 STATUS: checks serial status
-
-Version: 1.0.0-diamond
-github.com/jhsu22/opentensio
 """
 
 

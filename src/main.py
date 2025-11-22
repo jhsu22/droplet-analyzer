@@ -505,9 +505,12 @@ class App(ctk.CTk):
 
                 # Update slider and its label
                 self.frame.video_slider.set(frame_num)
-                self.frame.frame_number_label.configure(
-                    text=f"Frame {frame_num}/{int(self.num_frames - 1)}"
-                )
+                if self.is_live:
+                    self.frame.frame_number_label.configure(text=("LIVE FEED"))
+                else:
+                    self.frame.frame_number_label.configure(
+                        text=f"Frame {frame_num}/{int(self.num_frames - 1)}"
+                    )
 
             else:  # Video ended
                 self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset
