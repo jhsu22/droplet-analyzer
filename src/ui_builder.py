@@ -832,7 +832,20 @@ class UIFrame(ctk.CTkFrame):
 
     def open_export_popup(self):
         """Open Export popup window"""
-        ExportPopup(self.master)
+        # Determine max frames based on what's available
+        max_frames = 1000  # Default
+
+        # If analysis has been run, use the number of processed frames
+        if self.master.analysis_results:
+            max_frames = len(self.master.analysis_results)
+        # Otherwise, if a video is loaded, use the total frame count
+        elif self.master.video_capture and self.master.num_frames > 0:
+            max_frames = int(self.master.num_frames - 1)
+
+        # Ensure max_frames is at least 1
+        max_frames = max(1, max_frames)
+
+        ExportPopup(self.master, max_frames=max_frames)
 
     def open_settings_popup(self):
         """Open Settings popup window"""

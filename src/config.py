@@ -259,17 +259,16 @@ class PathConfig:
     # Output subdirectories
     OUTPUT_EDGE_DATA = OUTPUT_PATH / "edge_data"
     OUTPUT_EDGE_PLOTS = OUTPUT_PATH / "edge_plots"
-    OUTPUT_BINARY_EDGES = OUTPUT_PATH / "binary_edges"
+    OUTPUT_EXPORTS = OUTPUT_PATH / "exports"
 
     # Default video file
     DEFAULT_VIDEO_FILE = TEST_DATA_PATH / "test.mov"
 
-    @classmethod
-    def create_output_directories(cls):
+    def create_output_directories(self):
         """Create all output directories if they don't exist"""
-        cls.OUTPUT_EDGE_DATA.mkdir(parents=True, exist_ok=True)
-        cls.OUTPUT_EDGE_PLOTS.mkdir(parents=True, exist_ok=True)
-        cls.OUTPUT_BINARY_EDGES.mkdir(parents=True, exist_ok=True)
+        self.OUTPUT_EDGE_DATA.mkdir(parents=True, exist_ok=True)
+        self.OUTPUT_EDGE_PLOTS.mkdir(parents=True, exist_ok=True)
+        self.OUTPUT_EXPORTS.mkdir(parents=True, exist_ok=True)
 
 
 class PlotConfig:
@@ -296,13 +295,13 @@ class PopupConfig:
 
     # Popup dimensions
     VIDEO_POPUP_WIDTH = 600
-    VIDEO_POPUP_HEIGHT = 650
+    VIDEO_POPUP_HEIGHT = 600
 
     VIEWDATA_POPUP_WIDTH = 1000
     VIEWDATA_POPUP_HEIGHT = 800
 
     EXPORT_POPUP_WIDTH = 500
-    EXPORT_POPUP_HEIGHT = 450
+    EXPORT_POPUP_HEIGHT = 400
 
     SETTINGS_POPUP_WIDTH = 700
     SETTINGS_POPUP_HEIGHT = 500

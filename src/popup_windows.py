@@ -789,13 +789,15 @@ class ViewDataPopup(BasePopup):
 class ExportPopup(BasePopup):
     """Popup for exporting data"""
 
-    def __init__(self, parent):
+    def __init__(self, parent, max_frames=1000):
         super().__init__(
             parent,
             "EXPORT",
             PopupConfig.EXPORT_POPUP_WIDTH,
             PopupConfig.EXPORT_POPUP_HEIGHT,
         )
+
+        self.max_frames = max_frames
 
         # Configure grid
         self.content_frame.grid_columnconfigure(1, weight=1)
@@ -907,13 +909,28 @@ class ExportPopup(BasePopup):
         )
 
         self.start_frame_slider = ctk.CTkSlider(
-            self.content_frame, from_=0, to=1000, number_of_steps=1000
+            self.content_frame, from_=0, to=self.max_frames, number_of_steps=self.max_frames,
+            command=self.update_start_frame_label
         )
-        self.start_frame_slider.set(ProcessingConfig.DEFAULT_STARTING_FRAME)
+        self.start_frame_slider.set(min(ProcessingConfig.DEFAULT_STARTING_FRAME, self.max_frames))
         self.start_frame_slider.grid(
             row=row,
             column=1,
             sticky="ew",
+            pady=UIConfig.PADDING_SMALL,
+            padx=UIConfig.PADDING_SMALL,
+        )
+
+        self.start_frame_label = ctk.CTkLabel(
+            self.content_frame,
+            text=f"{self.start_frame_slider.get()}",
+            font=self.parent.custom_font,
+            text_color=UIConfig.COLOR_TEXT_PRIMARY,
+        )
+        self.start_frame_label.grid(
+            row=row,
+            column=2,
+            sticky="w",
             pady=UIConfig.PADDING_SMALL,
             padx=UIConfig.PADDING_SMALL,
         )
@@ -935,13 +952,28 @@ class ExportPopup(BasePopup):
         )
 
         self.end_frame_slider = ctk.CTkSlider(
-            self.content_frame, from_=0, to=1000, number_of_steps=1000
+            self.content_frame, from_=0, to=self.max_frames, number_of_steps=self.max_frames,
+            command=self.update_end_frame_label
         )
-        self.end_frame_slider.set(ProcessingConfig.DEFAULT_ENDING_FRAME)
+        self.end_frame_slider.set(min(ProcessingConfig.DEFAULT_ENDING_FRAME, self.max_frames))
         self.end_frame_slider.grid(
             row=row,
             column=1,
             sticky="ew",
+            pady=UIConfig.PADDING_SMALL,
+            padx=UIConfig.PADDING_SMALL,
+        )
+
+        self.end_frame_label = ctk.CTkLabel(
+            self.content_frame,
+            text=f"{self.end_frame_slider.get()}",
+            font=self.parent.custom_font,
+            text_color=UIConfig.COLOR_TEXT_PRIMARY,
+        )
+        self.end_frame_label.grid(
+            row=row,
+            column=2,
+            sticky="w",
             pady=UIConfig.PADDING_SMALL,
             padx=UIConfig.PADDING_SMALL,
         )
@@ -968,7 +1000,7 @@ class ExportPopup(BasePopup):
         self.include_plots_var = ctk.BooleanVar(value=True)
         self.include_plots_check = ctk.CTkCheckBox(
             self.content_frame,
-            text="Include plot images",
+            text="Export Plot Image",
             font=self.parent.custom_font,
             variable=self.include_plots_var,
         )
@@ -982,22 +1014,6 @@ class ExportPopup(BasePopup):
         )
 
         row += 1
-
-        self.include_binary_var = ctk.BooleanVar(value=False)
-        self.include_binary_check = ctk.CTkCheckBox(
-            self.content_frame,
-            text="Include binary edge images",
-            font=self.parent.custom_font,
-            variable=self.include_binary_var,
-        )
-        self.include_binary_check.grid(
-            row=row,
-            column=0,
-            columnspan=2,
-            sticky="w",
-            pady=UIConfig.PADDING_SMALL,
-            padx=UIConfig.PADDING_SMALL,
-        )
 
         # Spacer
         self.content_frame.grid_rowconfigure(row + 1, weight=1)
@@ -1026,10 +1042,18 @@ class ExportPopup(BasePopup):
             command=self.destroy,
         ).pack(side="right", padx=UIConfig.PADDING_SMALL)
 
+    def update_start_frame_label(self, value):
+        """Update start frame label when slider moves"""
+        self.start_frame_label.configure(text=f"{int(value)}")
+
+    def update_end_frame_label(self, value):
+        """Update end frame label when slider moves"""
+        self.end_frame_label.configure(text=f"{int(value)}")
+
     def browse_directory(self):
         """Open directory selection dialog"""
         directory = filedialog.askdirectory(
-            title="Select Output Directory", initialdir=PathConfig.OUTPUT_PATH
+            title="Select Output Directory", initialdir=PathConfig.OUTPUT_EXPORTS
         )
 
         if directory:
@@ -1041,7 +1065,7 @@ class ExportPopup(BasePopup):
         format_type = self.format_combo.get()
 
         # Get directory from entry or use default
-        output_dir = self.dir_entry.get() or str(PathConfig.OUTPUT_PATH)
+        output_dir = self.dir_entry.get() or str(PathConfig.OUTPUT_EXPORTS)
 
         # Create a filename with the current timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

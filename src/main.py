@@ -67,6 +67,9 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
+        path_config = PathConfig()
+        path_config.create_output_directories()
+
         self.serial_manager = None
 
         self.is_drawing_frame = False
@@ -112,7 +115,7 @@ class App(ctk.CTk):
         self.VIDEO_PATH = PathConfig.DEFAULT_VIDEO_FILE
         self.OUTPUT_DATA_PATH = PathConfig.OUTPUT_EDGE_DATA
         self.OUTPUT_IMG_PATH = PathConfig.OUTPUT_EDGE_PLOTS
-        self.OUTPUT_BINARY_PATH = PathConfig.OUTPUT_BINARY_EDGES
+        self.OUTPUT_EXPORT_PATH = PathConfig.OUTPUT_EXPORTS
 
     def _setup_paths(self):
         # Initialize asset paths
