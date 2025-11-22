@@ -12,7 +12,7 @@ class UIConfig:
     """UI-related configuration constants"""
 
     # Window settings
-    WINDOW_TITLE = "Pendant Droplet Analyzer"
+    WINDOW_TITLE = "OpenTensio"
     WINDOW_WIDTH = 900
     WINDOW_HEIGHT = 600
     WINDOW_GEOMETRY = f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}"
@@ -37,7 +37,7 @@ class UIConfig:
     PADDING_LARGE = 15
 
     # Header settings
-    HEADER_TITLE = "[PENDANT DROPLET ANALYZER] CONTROLS"
+    HEADER_TITLE = "[OPENTENSIO] CONTROLS"
     HEADER_BORDER_WIDTH = 2
 
     # Button settings
@@ -358,8 +358,8 @@ MOVE (integer value): moves the frame a certain number of steps. positive is up,
 LED (0-100): controls LED brightness
 STATUS: checks serial status
 
-Version: 1.0.0
-github.com/jhsu22/droplet-analyzer
+Version: 1.0.0-diamond
+github.com/jhsu22/opentensio
 """
 
 

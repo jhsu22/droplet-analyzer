@@ -6,6 +6,8 @@ import copy
 import os
 import sys
 import threading
+from pydoc import text
+from sre_parse import State
 
 import customtkinter as ctk
 from serial import Serial
@@ -75,6 +77,9 @@ class App(ctk.CTk):
         self.is_calibrated = False
         self.is_live = False
         self.num_frames = 0
+
+        self.update_id = None
+        self.current_image_ref = None
 
         self.debug_popup = None
 
@@ -218,6 +223,42 @@ class App(ctk.CTk):
 
         except Exception as e:
             print(f"Error updating UI: {e}")
+
+    def stop_video_playback(self):
+        print("Stopping video playback")
+
+        if self.update_id:
+            self.after_cancel(self.update_id)
+            self.update_id = None
+
+        # Stop all running loops and threads
+        self.is_playing = False
+        self.is_live = False
+
+        # Wait for analysis thread to finish before ending
+        if self.analysis_thread and self.analysis_thread.is_alive():
+            self.analysis_thread.join()
+            print("Analysis thread stopped")
+        self.analysis_thread = None
+
+        # Reset UI elements
+        self.frame.video_slider.set(0)
+        self.frame.video_slider.configure(state="disabled")
+        self.frame.frame_number_label.configure(text="Frame 0/0")
+        self.frame.calibrate_button.configure(state="disabled")
+        self.frame.start_analysis_button.configure(
+            text="Start Analysis", state="disabled"
+        )
+
+        # Clear image panel
+        self.frame.image_label.configure(image="", text="(Droplet Preview")
+
+        # Clear references
+        self.current_image_ref = None
+
+        self.update_idletasks()
+
+        self.is_calibrated = False
 
     # === Analysis Logic === #
     def start_calibration(self):
@@ -369,6 +410,9 @@ class App(ctk.CTk):
     # === Video File Logic === #
     def load_video(self, video_path):
         # Load video, update UI controls, and show first frame
+
+        self.stop_video_playback()
+
         if self.video_capture:
             self.video_capture.release()
 
@@ -453,9 +497,11 @@ class App(ctk.CTk):
                     size=(new_width, new_height),
                 )
 
-                # Update the label
-                self.frame.image_label.configure(image=ctk_image, text="")
-                self.frame.image_label.image = ctk_image
+                # Update persistent reference
+                self.current_image_ref = ctk_image
+
+                # Configure label using reference
+                self.frame.image_label.configure(image=self.current_image_ref, text="")
 
                 # Update slider and its label
                 self.frame.video_slider.set(frame_num)
@@ -608,7 +654,7 @@ class App(ctk.CTk):
                     text=f"Frame {next_frame}/{int(self.num_frames - 1)}"
                 )
 
-                self.after(15, self.update_video)
+                self.update_id = self.after(15, self.update_video)
         else:
             print("Analysis complete.")
             print(f"Processsed {len(self.analysis_results)} frames.")
@@ -620,6 +666,9 @@ class App(ctk.CTk):
     # === Live Video Logic === #
     def load_camera(self, index):
         # Initialize live camera and start feed
+
+        self.stop_video_playback()
+
         if self.video_capture:
             self.video_capture.release()
 
@@ -690,7 +739,7 @@ class App(ctk.CTk):
                     self.frame.image_label.image = ctk_image
 
         # Schedule the next update (approx 30 FPS -> 33ms)
-        self.after(30, self.update_camera_feed)
+        self.update_id = self.after(30, self.update_camera_feed)
 
     # === Serial Logic === #
     def get_device_description(self, port):

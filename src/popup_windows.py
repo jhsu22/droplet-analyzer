@@ -126,6 +126,8 @@ class VideoPopup(BasePopup):
             PopupConfig.VIDEO_POPUP_HEIGHT,
         )
 
+        self.parent.stop_video_playback()
+
         self.selected_video_path = None
         self.selected_camera_index = None
         self.preview_update_id = None  # Track the after callback ID
